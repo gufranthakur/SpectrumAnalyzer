@@ -3,6 +3,7 @@ package com.spectrumanalyzer;
 import atlantafx.base.theme.CupertinoDark;
 import atlantafx.base.theme.CupertinoLight;
 import atlantafx.base.theme.NordDark;
+import atlantafx.base.theme.PrimerDark;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -38,7 +39,7 @@ public class SpectrumAnalyzer extends Application {
         primaryStage.setTitle("Spectrum Analyzer");
         primaryStage.setScene(scene);
         primaryStage.show();
-        Platform.runLater(() -> primaryStage.setFullScreen(true));
+        //Platform.runLater(() -> primaryStage.setFullScreen(true));
     }
 
     private void initializeComponents() {

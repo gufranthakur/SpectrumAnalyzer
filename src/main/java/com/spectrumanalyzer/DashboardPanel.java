@@ -18,9 +18,6 @@ public class DashboardPanel extends VBox {
     public LineChart<Number, Number> timeChart;
     public LineChart<Number, Number> frequencyChart;
 
-    // Store original signal for comparison
-    private double[][] originalSignal;
-
     // Zoom and pan functionality
     private LineChart<Number, Number> selectedChart = null;
     private boolean ctrlPressed = false;
@@ -144,9 +141,6 @@ public class DashboardPanel extends VBox {
         chart.setOnMousePressed(this::handleMousePressed);
         chart.setOnMouseDragged(this::handleMouseDragged);
         chart.setOnMouseReleased(this::handleMouseReleased);
-
-        // Initial styling
-        chart.setStyle("-fx-border-color: transparent; -fx-border-width: 2px;");
     }
 
     private void handleChartClick(MouseEvent event) {
@@ -159,27 +153,26 @@ public class DashboardPanel extends VBox {
             return;
         }
 
-        // Single click to select chart
-        selectChart(clickedChart);
-        this.requestFocus(); // Ensure we can receive key events
-        event.consume();
-    }
-
-    private void selectChart(LineChart<Number, Number> chart) {
-        // Remove selection from previously selected chart
-        if (selectedChart != null) {
-            selectedChart.setStyle("-fx-border-color: transparent; -fx-border-width: 2px;");
-        }
-
-        // Select new chart
-        selectedChart = chart;
-        selectedChart.setStyle("-fx-border-color: #0066cc; -fx-border-width: 2px;");
+        // Single click to select chart (no visual feedback)
+        selectedChart = clickedChart;
 
         // Reset base values for horizontal zoom
         NumberAxis xAxis = (NumberAxis) selectedChart.getXAxis();
         baseXRange = xAxis.getUpperBound() - xAxis.getLowerBound();
         baseXCenter = (xAxis.getUpperBound() + xAxis.getLowerBound()) / 2;
+
+        this.requestFocus();
+        event.consume();
     }
+
+    private void deselectChart() {
+        selectedChart = null;
+        // Reset horizontal zoom slider and base values
+        horizontalZoomSlider.setValue(1.0);
+        baseXRange = 0;
+    }
+
+
 
     private void handleKeyPressed(KeyEvent event) {
         if (event.getCode() == KeyCode.CONTROL) {
@@ -334,16 +327,6 @@ public class DashboardPanel extends VBox {
         baseXRange = 0;
     }
 
-    // Method to store the original signal before filtering
-    public void storeOriginalSignal(double[][] signal) {
-        if (signal != null) {
-            originalSignal = new double[signal.length][];
-            for (int i = 0; i < signal.length; i++) {
-                originalSignal[i] = Arrays.copyOf(signal[i], signal[i].length);
-            }
-        }
-    }
-
     public void updatePlots() {
         System.out.println("updatePlots() called");
         if (analyzer.processedSignal == null) {
@@ -363,11 +346,11 @@ public class DashboardPanel extends VBox {
         timeChart.getData().clear();
 
         // Add original signal if available
-        if (originalSignal != null && originalSignal.length > 0) {
+        if (analyzer.originalSignal != null && analyzer.originalSignal.length > 0) {
             XYChart.Series<Number, Number> originalSeries = new XYChart.Series<>();
             originalSeries.setName("Original Signal");
 
-            double[] signal = originalSignal[0];
+            double[] signal = analyzer.originalSignal[0];
             int maxPoints = 2000; // Limit to 2000 points
             int step = Math.max(1, signal.length / maxPoints);
 
@@ -382,9 +365,9 @@ public class DashboardPanel extends VBox {
             originalSeries.getNode().setStyle("-fx-stroke: #ff6b35; -fx-stroke-width: 1px;");
         }
 
-        // Add filtered/processed signal
-        XYChart.Series<Number, Number> filteredSeries = new XYChart.Series<>();
-        filteredSeries.setName(originalSignal != null ? "Filtered Signal" : "Signal");
+        // Add current/processed signal
+        XYChart.Series<Number, Number> currentSeries = new XYChart.Series<>();
+        currentSeries.setName(analyzer.originalSignal != null ? "Current Signal" : "Signal");
 
         double[] signal = analyzer.processedSignal[0];
         int maxPoints = 2000; // Limit to 2000 points
@@ -392,45 +375,122 @@ public class DashboardPanel extends VBox {
 
         for (int i = 0; i < signal.length; i += step) {
             double time = (double) i / analyzer.sampleRate;
-            filteredSeries.getData().add(new XYChart.Data<>(time, signal[i]));
+            currentSeries.getData().add(new XYChart.Data<>(time, signal[i]));
         }
 
-        timeChart.getData().add(filteredSeries);
+        timeChart.getData().add(currentSeries);
 
-        // Style the filtered series in blue
-        filteredSeries.getNode().setStyle("-fx-stroke: #0066cc; -fx-stroke-width: 2px;");
+        // Style the current series in blue
+        currentSeries.getNode().setStyle("-fx-stroke: #0066cc; -fx-stroke-width: 2px;");
     }
 
     private void updateFrequencyDomainPlot() {
         frequencyChart.getData().clear();
 
         // Add original signal spectrum if available
-        if (originalSignal != null && originalSignal.length > 0) {
-            XYChart.Series<Number, Number> originalSeries = createFrequencyDomainSeries(originalSignal[0], "Original Spectrum");
+        if (analyzer.originalSignal != null && analyzer.originalSignal.length > 0) {
+            XYChart.Series<Number, Number> originalSeries = createFrequencyDomainSeries(analyzer.originalSignal[0], "Original Spectrum");
             frequencyChart.getData().add(originalSeries);
 
             // Style the original spectrum
             originalSeries.getNode().setStyle("-fx-stroke: #ff6b35; -fx-stroke-width: 1px;");
         }
 
-        // Add filtered signal spectrum
-        XYChart.Series<Number, Number> filteredSeries = createFrequencyDomainSeries(
+        // Add current signal spectrum
+        XYChart.Series<Number, Number> currentSeries = createFrequencyDomainSeries(
                 analyzer.processedSignal[0],
-                originalSignal != null ? "Filtered Spectrum" : "Spectrum"
+                analyzer.originalSignal != null ? "Current Spectrum" : "Spectrum"
         );
-        frequencyChart.getData().add(filteredSeries);
+        frequencyChart.getData().add(currentSeries);
 
-        // Style the filtered spectrum in blue
-        filteredSeries.getNode().setStyle("-fx-stroke: #0066cc; -fx-stroke-width: 2px;");
+        // Style the current spectrum in blue
+        currentSeries.getNode().setStyle("-fx-stroke: #0066cc; -fx-stroke-width: 2px;");
     }
 
     private XYChart.Series<Number, Number> createFrequencyDomainSeries(double[] signal, String seriesName) {
-        // Use smaller chunk for FFT to avoid performance issues
-        int fftSize = Math.min(8192, signal.length);
+        // Use power-of-2 FFT size for better performance
+        int fftSize = Integer.highestOneBit(Math.min(8192, signal.length));
+        if (fftSize < signal.length && fftSize * 2 <= 8192) {
+            fftSize *= 2; // Use next power of 2 if it fits
+        }
+
         double[] chunk = new double[fftSize];
-        System.arraycopy(signal, 0, chunk, 0, fftSize);
+        System.arraycopy(signal, 0, chunk, 0, Math.min(fftSize, signal.length));
+
+        // Zero-pad if signal is shorter than fftSize
+        Arrays.fill(chunk, Math.min(fftSize, signal.length), fftSize, 0.0);
+
+        // Apply windowing to reduce spectral leakage
+        applyHanningWindow(chunk);
 
         DiscreteFourier dft = new DiscreteFourier(chunk);
+        dft.transform();
+
+        double[] magnitude = dft.getMagnitude(true);
+
+        XYChart.Series<Number, Number> series = new XYChart.Series<>();
+        series.setName(seriesName);
+
+        // Only plot positive frequencies (Nyquist theorem)
+        int halfLength = magnitude.length / 2;
+        double freqResolution = (double) analyzer.sampleRate / magnitude.length;
+
+        // Skip DC component (i=0) and limit points for performance
+        int maxPoints = 1000;
+        int step = Math.max(1, halfLength / maxPoints);
+
+        for (int i = 1; i < halfLength; i += step) { // Start from 1 to skip DC
+            double frequency = i * freqResolution;
+
+            // FIXED: Proper magnitude calculation
+            double magnitudeValue = magnitude[i];
+
+            // Apply proper scaling for FFT normalization
+            magnitudeValue = magnitudeValue / (fftSize / 2.0); // Normalize by FFT size
+
+            // Apply window correction factor (for Hanning window)
+            magnitudeValue = magnitudeValue / 0.5; // Hanning window correction
+
+            // Convert to dB with proper noise floor
+            double magnitudeDb;
+            if (magnitudeValue > 0) {
+                magnitudeDb = 20 * Math.log10(magnitudeValue);
+            } else {
+                magnitudeDb = -120; // Set noise floor to -120 dB
+            }
+
+            series.getData().add(new XYChart.Data<>(frequency, magnitudeDb));
+        }
+
+        return series;
+    }
+
+    // Improved windowing with proper normalization
+    private void applyHanningWindow(double[] data) {
+        int N = data.length;
+        for (int i = 0; i < N; i++) {
+            double window = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+            data[i] *= window;
+        }
+    }
+
+    // Alternative: More accurate frequency domain analysis method
+    private XYChart.Series<Number, Number> createAccurateFrequencyDomainSeries(double[] signal, String seriesName) {
+        // Ensure we have enough samples for meaningful analysis
+        int minFFTSize = 512;
+        int fftSize = Math.max(minFFTSize, Integer.highestOneBit(signal.length));
+        if (fftSize < signal.length && fftSize * 2 <= 16384) {
+            fftSize *= 2;
+        }
+
+        double[] paddedSignal = new double[fftSize];
+        System.arraycopy(signal, 0, paddedSignal, 0, Math.min(signal.length, fftSize));
+
+        // Apply Hanning window
+        applyHanningWindow(paddedSignal);
+
+        // Perform FFT
+        DiscreteFourier dft = new DiscreteFourier(paddedSignal);
         dft.transform();
 
         double[] magnitude = dft.getMagnitude(true);
@@ -441,25 +501,38 @@ public class DashboardPanel extends VBox {
         int halfLength = magnitude.length / 2;
         double freqResolution = (double) analyzer.sampleRate / magnitude.length;
 
-        for (int i = 0; i < halfLength; i++) {
+        // Calculate RMS scaling factor for proper amplitude representation
+        double windowRMS = Math.sqrt(0.375); // RMS of Hanning window
+        double scaleFactor = 2.0 / (fftSize * windowRMS); // Proper scaling
+
+        int maxPoints = 1000;
+        int step = Math.max(1, halfLength / maxPoints);
+
+        for (int i = 1; i < halfLength; i += step) {
             double frequency = i * freqResolution;
-            double magnitudeDb = 20 * Math.log10(Math.max(magnitude[i], 1e-10));
+
+            // Apply proper scaling
+            double scaledMagnitude = magnitude[i] * scaleFactor;
+
+            // Convert to dB
+            double magnitudeDb = scaledMagnitude > 1e-12 ?
+                    20 * Math.log10(scaledMagnitude) : -120;
+
             series.getData().add(new XYChart.Data<>(frequency, magnitudeDb));
         }
 
         return series;
     }
 
+
     public void showChartMode(boolean showTime, boolean showFrequency) {
         getChildren().clear();
 
         if (showTime) {
-            VBox timeBox = new VBox();
-            timeBox.getChildren().addAll(horizontalZoomSlider, timeChart);
             VBox.setVgrow(timeChart, Priority.ALWAYS);
             HBox.setHgrow(timeChart, Priority.ALWAYS);
             timeChart.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-            getChildren().add(timeBox);
+            getChildren().add(timeChart);
         }
 
         if (showFrequency) {

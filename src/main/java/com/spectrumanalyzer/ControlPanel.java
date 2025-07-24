@@ -233,7 +233,7 @@ public class ControlPanel extends VBox {
             return;
         }
 
-        analyzer.dashboardPanel.storeOriginalSignal(analyzer.processedSignal);
+        resetSignal();
 
         try {
             double cutoff = Double.parseDouble(cutoffField.getText());
