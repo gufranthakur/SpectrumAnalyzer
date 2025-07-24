@@ -303,13 +303,6 @@ public class DashboardPanel extends VBox {
         baseXRange = 0; // Will be recalculated on next selection
     }
 
-    // Method to reset zoom for selected chart
-    public void resetZoom() {
-        if (selectedChart != null) {
-            resetChartZoom(selectedChart);
-        }
-    }
-
     // Method to reset zoom for all charts
     public void resetAllZoom() {
         NumberAxis timeXAxis = (NumberAxis) timeChart.getXAxis();
@@ -473,57 +466,6 @@ public class DashboardPanel extends VBox {
             data[i] *= window;
         }
     }
-
-    // Alternative: More accurate frequency domain analysis method
-    private XYChart.Series<Number, Number> createAccurateFrequencyDomainSeries(double[] signal, String seriesName) {
-        // Ensure we have enough samples for meaningful analysis
-        int minFFTSize = 512;
-        int fftSize = Math.max(minFFTSize, Integer.highestOneBit(signal.length));
-        if (fftSize < signal.length && fftSize * 2 <= 16384) {
-            fftSize *= 2;
-        }
-
-        double[] paddedSignal = new double[fftSize];
-        System.arraycopy(signal, 0, paddedSignal, 0, Math.min(signal.length, fftSize));
-
-        // Apply Hanning window
-        applyHanningWindow(paddedSignal);
-
-        // Perform FFT
-        DiscreteFourier dft = new DiscreteFourier(paddedSignal);
-        dft.transform();
-
-        double[] magnitude = dft.getMagnitude(true);
-
-        XYChart.Series<Number, Number> series = new XYChart.Series<>();
-        series.setName(seriesName);
-
-        int halfLength = magnitude.length / 2;
-        double freqResolution = (double) analyzer.sampleRate / magnitude.length;
-
-        // Calculate RMS scaling factor for proper amplitude representation
-        double windowRMS = Math.sqrt(0.375); // RMS of Hanning window
-        double scaleFactor = 2.0 / (fftSize * windowRMS); // Proper scaling
-
-        int maxPoints = 1000;
-        int step = Math.max(1, halfLength / maxPoints);
-
-        for (int i = 1; i < halfLength; i += step) {
-            double frequency = i * freqResolution;
-
-            // Apply proper scaling
-            double scaledMagnitude = magnitude[i] * scaleFactor;
-
-            // Convert to dB
-            double magnitudeDb = scaledMagnitude > 1e-12 ?
-                    20 * Math.log10(scaledMagnitude) : -120;
-
-            series.getData().add(new XYChart.Data<>(frequency, magnitudeDb));
-        }
-
-        return series;
-    }
-
 
     public void showChartMode(boolean showTime, boolean showFrequency) {
         getChildren().clear();
