@@ -8,6 +8,10 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 
 import java.util.*;
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.TransformType;
 
 public class StatisticPanel extends VBox {
     private SpectrumAnalyzer spectrumAnalyzer;
@@ -15,37 +19,26 @@ public class StatisticPanel extends VBox {
     // UI Components
     private Label titleLabel;
     private Button updateStatisticsButton;
-    private Label channelInfoLabel;
-    private Label sampleRateLabel;
-    private Label durationLabel;
-    private Label totalSamplesLabel;
 
-    // Statistics components
-    private ProgressBar rmsProgressBar;
-    private Label rmsValueLabel;
-    private ProgressBar peakProgressBar;
-    private Label peakValueLabel;
-    private ProgressBar dynamicRangeProgressBar;
-    private Label dynamicRangeValueLabel;
-    private ProgressBar signalToNoiseProgressBar;
-    private Label signalToNoiseValueLabel;
+    // Original Signal Statistics
+    private Label originalTitleLabel;
+    private Label originalChannelsLabel;
+    private Label originalSampleRateLabel;
+    private Label originalDurationLabel;
+    private Label originalRMSLabel;
+    private Label originalPeakLabel;
 
-    // Frequency analysis
-    private PieChart frequencyDistributionChart;
-    private ProgressBar lowFreqProgressBar;
-    private ProgressBar midFreqProgressBar;
-    private ProgressBar highFreqProgressBar;
-    private Label lowFreqLabel;
-    private Label midFreqLabel;
-    private Label highFreqLabel;
+    // Filtered Signal Statistics
+    private Label filteredTitleLabel;
+    private Label filteredChannelsLabel;
+    private Label filteredSampleRateLabel;
+    private Label filteredDurationLabel;
+    private Label filteredRMSLabel;
+    private Label filteredPeakLabel;
 
-    // Channel statistics (for stereo)
-    private ProgressBar leftChannelRMSBar;
-    private ProgressBar rightChannelRMSBar;
-    private Label leftChannelRMSLabel;
-    private Label rightChannelRMSLabel;
-    private ProgressBar stereoBalanceBar;
-    private Label stereoBalanceLabel;
+    // Top 5 Frequencies
+    private Label frequenciesTitleLabel;
+    private VBox frequenciesContainer;
 
     public StatisticPanel(SpectrumAnalyzer spectrumAnalyzer) {
         this.spectrumAnalyzer = spectrumAnalyzer;
@@ -53,81 +46,58 @@ public class StatisticPanel extends VBox {
         initializeComponents();
         setupLayout();
         setStyle();
-        this.setMaxWidth(Double.MAX_VALUE); // allow resizing
+        this.setMaxWidth(Double.MAX_VALUE);
     }
 
     private void initializeComponents() {
-        // Title and basic info
+        // Title and update button
         titleLabel = new Label("Signal Statistics");
-        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        updateStatisticsButton = new Button("Update");
-        updateStatisticsButton.setOnMouseClicked(e -> {
-            updateBasicInfo();
-            updateChannelStatistics();
-            updateSignalStatistics();
-            updateFrequencyAnalysis();
-        });
+        updateStatisticsButton = new Button("Update Statistics");
+        updateStatisticsButton.setOnAction(e -> refreshData());
 
-        channelInfoLabel = new Label("Channels: N/A");
-        sampleRateLabel = new Label("Sample Rate: N/A");
-        durationLabel = new Label("Duration: N/A");
-        totalSamplesLabel = new Label("Total Samples: N/A");
+        // Original Signal Section
+        originalTitleLabel = new Label("Original Signal");
+        originalTitleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #00BFFF;");
 
-        // RMS Statistics
-        rmsProgressBar = new ProgressBar(0);
-        rmsProgressBar.setPrefWidth(200);
-        rmsValueLabel = new Label("RMS Level: N/A");
+        originalChannelsLabel = new Label("Channels: N/A");
+        originalChannelsLabel.setStyle("-fx-font-size: 16px;");
+        originalSampleRateLabel = new Label("Sample Rate: N/A");
+        originalSampleRateLabel.setStyle("-fx-font-size: 16px;");
+        originalDurationLabel = new Label("Duration: N/A");
+        originalDurationLabel.setStyle("-fx-font-size: 16px;");
+        originalRMSLabel = new Label("RMS Level: N/A");
+        originalRMSLabel.setStyle("-fx-font-size: 16px;");
+        originalPeakLabel = new Label("Peak Level: N/A");
+        originalPeakLabel.setStyle("-fx-font-size: 16px;");
 
-        // Peak Statistics
-        peakProgressBar = new ProgressBar(0);
-        peakProgressBar.setPrefWidth(200);
-        peakValueLabel = new Label("Peak Level: N/A");
+        // Filtered Signal Section
+        filteredTitleLabel = new Label("Filtered Signal");
+        filteredTitleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #FF6B35;");
 
-        // Dynamic Range
-        dynamicRangeProgressBar = new ProgressBar(0);
-        dynamicRangeProgressBar.setPrefWidth(200);
-        dynamicRangeValueLabel = new Label("Dynamic Range: N/A");
+        filteredChannelsLabel = new Label("Channels: N/A");
+        filteredChannelsLabel.setStyle("-fx-font-size: 16px;");
+        filteredSampleRateLabel = new Label("Sample Rate: N/A");
+        filteredSampleRateLabel.setStyle("-fx-font-size: 16px;");
+        filteredDurationLabel = new Label("Duration: N/A");
+        filteredDurationLabel.setStyle("-fx-font-size: 16px;");
+        filteredRMSLabel = new Label("RMS Level: N/A");
+        filteredRMSLabel.setStyle("-fx-font-size: 16px;");
+        filteredPeakLabel = new Label("Peak Level: N/A");
+        filteredPeakLabel.setStyle("-fx-font-size: 16px;");
 
-        // Signal to Noise Ratio
-        signalToNoiseProgressBar = new ProgressBar(0);
-        signalToNoiseProgressBar.setPrefWidth(200);
-        signalToNoiseValueLabel = new Label("SNR: N/A");
+        // Top 5 Frequencies Section
+        frequenciesTitleLabel = new Label("Top 5 Frequencies");
+        frequenciesTitleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #00FF7F;");
 
-        // Frequency Distribution Chart
-        frequencyDistributionChart = new PieChart();
-        frequencyDistributionChart.setTitle("Frequency Distribution (Top 5 Bands)");
-        frequencyDistributionChart.setPrefSize(300, 200);
-
-        // Frequency band progress bars
-        lowFreqProgressBar = new ProgressBar(0);
-        lowFreqProgressBar.setPrefWidth(200);
-        lowFreqLabel = new Label("Low Freq (20-250 Hz): N/A");
-
-        midFreqProgressBar = new ProgressBar(0);
-        midFreqProgressBar.setPrefWidth(200);
-        midFreqLabel = new Label("Mid Freq (250-4000 Hz): N/A");
-
-        highFreqProgressBar = new ProgressBar(0);
-        highFreqProgressBar.setPrefWidth(200);
-        highFreqLabel = new Label("High Freq (4000+ Hz): N/A");
-
-        // Channel-specific statistics
-        leftChannelRMSBar = new ProgressBar(0);
-        leftChannelRMSBar.setPrefWidth(200);
-        leftChannelRMSLabel = new Label("Left Channel RMS: N/A");
-
-        rightChannelRMSBar = new ProgressBar(0);
-        rightChannelRMSBar.setPrefWidth(200);
-        rightChannelRMSLabel = new Label("Right Channel RMS: N/A");
-
-        stereoBalanceBar = new ProgressBar(0.5);
-        stereoBalanceBar.setPrefWidth(200);
-        stereoBalanceLabel = new Label("Stereo Balance: N/A");
+        frequenciesContainer = new VBox();
+        frequenciesContainer.setSpacing(3);
     }
 
+
     private void setupLayout() {
-        this.setSpacing(8);
+        this.setSpacing(10);
         this.setPadding(new Insets(15));
         this.setAlignment(Pos.TOP_LEFT);
 
@@ -138,246 +108,180 @@ public class StatisticPanel extends VBox {
                 makeSeparator()
         );
 
-        // Basic info section
-        Label basicInfoTitle = new Label("Basic Information");
-        basicInfoTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        // Original signal section
         this.getChildren().addAll(
-                basicInfoTitle,
-                channelInfoLabel,
-                sampleRateLabel,
-                durationLabel,
-                totalSamplesLabel,
+                originalTitleLabel,
+                originalChannelsLabel,
+                originalSampleRateLabel,
+                originalDurationLabel,
+                originalRMSLabel,
+                originalPeakLabel,
                 makeSeparator()
         );
 
-        // Signal level statistics
-        Label signalStatsTitle = new Label("Signal Level Statistics");
-        signalStatsTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        // Filtered signal section
         this.getChildren().addAll(
-                signalStatsTitle,
-                rmsValueLabel,
-                rmsProgressBar,
-                peakValueLabel,
-                peakProgressBar,
-                dynamicRangeValueLabel,
-                dynamicRangeProgressBar,
-                signalToNoiseValueLabel,
-                signalToNoiseProgressBar,
+                filteredTitleLabel,
+                filteredChannelsLabel,
+                filteredSampleRateLabel,
+                filteredDurationLabel,
+                filteredRMSLabel,
+                filteredPeakLabel,
                 makeSeparator()
         );
 
-        // Frequency analysis
-        Label freqAnalysisTitle = new Label("Frequency Analysis");
-        freqAnalysisTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        // Top frequencies section
         this.getChildren().addAll(
-                freqAnalysisTitle,
-                frequencyDistributionChart,
-                lowFreqLabel,
-                lowFreqProgressBar,
-                midFreqLabel,
-                midFreqProgressBar,
-                highFreqLabel,
-                highFreqProgressBar,
-                makeSeparator()
-        );
-
-        // Channel statistics (will show only for stereo)
-        Label channelStatsTitle = new Label("Channel Statistics");
-        channelStatsTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-        this.getChildren().addAll(
-                channelStatsTitle,
-                leftChannelRMSLabel,
-                leftChannelRMSBar,
-                rightChannelRMSLabel,
-                rightChannelRMSBar,
-                stereoBalanceLabel,
-                stereoBalanceBar
+                frequenciesTitleLabel,
+                frequenciesContainer
         );
     }
 
     private void setStyle() {
-        // Style progress bars
-        String progressBarStyle = "-fx-accent: #007ACC;";
-        rmsProgressBar.setStyle(progressBarStyle);
-        peakProgressBar.setStyle(progressBarStyle);
-        dynamicRangeProgressBar.setStyle(progressBarStyle);
-        signalToNoiseProgressBar.setStyle(progressBarStyle);
-        lowFreqProgressBar.setStyle(progressBarStyle);
-        midFreqProgressBar.setStyle(progressBarStyle);
-        highFreqProgressBar.setStyle(progressBarStyle);
-        leftChannelRMSBar.setStyle(progressBarStyle);
-        rightChannelRMSBar.setStyle(progressBarStyle);
-        stereoBalanceBar.setStyle("-fx-accent: #FF6B35;");
+        // Style all labels
+        String labelStyle = "-fx-text-fill: #E0E0E0; -fx-font-size: 12px;";
+
+        originalChannelsLabel.setStyle(labelStyle);
+        originalSampleRateLabel.setStyle(labelStyle);
+        originalDurationLabel.setStyle(labelStyle);
+        originalRMSLabel.setStyle(labelStyle);
+        originalPeakLabel.setStyle(labelStyle);
+
+        filteredChannelsLabel.setStyle(labelStyle);
+        filteredSampleRateLabel.setStyle(labelStyle);
+        filteredDurationLabel.setStyle(labelStyle);
+        filteredRMSLabel.setStyle(labelStyle);
+        filteredPeakLabel.setStyle(labelStyle);
+
+        // Style button
+        updateStatisticsButton.setStyle(
+                "-fx-background-color: #007ACC; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-background-radius: 5px;"
+        );
     }
 
     private Separator makeSeparator() {
         Separator separator = new Separator();
-        separator.setPadding(new Insets(6, 0, 6, 0));
+        separator.setPadding(new Insets(5, 0, 5, 0));
+        separator.setStyle("-fx-background-color: #404040;");
         return separator;
     }
 
     public void refreshData() {
+        updateOriginalSignalStats();
+        updateFilteredSignalStats();
+        updateTopFrequencies();
+    }
+
+    private void updateOriginalSignalStats() {
         if (spectrumAnalyzer.originalSignal == null || spectrumAnalyzer.originalSignal.length == 0) {
-            clearStatistics();
+            clearOriginalStats();
             return;
         }
 
-        updateBasicInfo();
-        updateSignalStatistics();
-        updateFrequencyAnalysis();
-        updateChannelStatistics();
-    }
+        // Basic info
+        originalChannelsLabel.setText("Channels: " + spectrumAnalyzer.channels);
+        originalSampleRateLabel.setText("Sample Rate: " + spectrumAnalyzer.sampleRate + " Hz");
 
-    private void clearStatistics() {
-        channelInfoLabel.setText("Channels: N/A");
-        sampleRateLabel.setText("Sample Rate: N/A");
-        durationLabel.setText("Duration: N/A");
-        totalSamplesLabel.setText("Total Samples: N/A");
+        int samples = spectrumAnalyzer.originalSignal[0].length;
+        double duration = (double) samples / spectrumAnalyzer.sampleRate;
+        originalDurationLabel.setText(String.format("Duration: %.2f seconds", duration));
 
-        rmsValueLabel.setText("RMS Level: N/A");
-        rmsProgressBar.setProgress(0);
-        peakValueLabel.setText("Peak Level: N/A");
-        peakProgressBar.setProgress(0);
-        dynamicRangeValueLabel.setText("Dynamic Range: N/A");
-        dynamicRangeProgressBar.setProgress(0);
-        signalToNoiseValueLabel.setText("SNR: N/A");
-        signalToNoiseProgressBar.setProgress(0);
+        // Audio statistics
+        double[] mixedSignal = getMixedDownSignal(spectrumAnalyzer.originalSignal);
+        double rms = calculateRMS(mixedSignal);
+        double peak = Arrays.stream(mixedSignal).map(Math::abs).max().orElse(0.0);
 
-        frequencyDistributionChart.getData().clear();
-        lowFreqLabel.setText("Low Freq (20-250 Hz): N/A");
-        lowFreqProgressBar.setProgress(0);
-        midFreqLabel.setText("Mid Freq (250-4000 Hz): N/A");
-        midFreqProgressBar.setProgress(0);
-        highFreqLabel.setText("High Freq (4000+ Hz): N/A");
-        highFreqProgressBar.setProgress(0);
-
-        leftChannelRMSLabel.setText("Left Channel RMS: N/A");
-        leftChannelRMSBar.setProgress(0);
-        rightChannelRMSLabel.setText("Right Channel RMS: N/A");
-        rightChannelRMSBar.setProgress(0);
-        stereoBalanceLabel.setText("Stereo Balance: N/A");
-        stereoBalanceBar.setProgress(0.5);
-    }
-
-    private void updateBasicInfo() {
-        channelInfoLabel.setText("Channels: " + spectrumAnalyzer.channels);
-        sampleRateLabel.setText("Sample Rate: " + spectrumAnalyzer.sampleRate + " Hz");
-
-        int totalSamples = spectrumAnalyzer.originalSignal[0].length;
-        double duration = (double) totalSamples / spectrumAnalyzer.sampleRate;
-        durationLabel.setText(String.format("Duration: %.2f seconds", duration));
-        totalSamplesLabel.setText("Total Samples: " + totalSamples);
-    }
-
-    private void updateSignalStatistics() {
-        double[] allSamples = getAllSamplesFlattened();
-
-        // Calculate RMS
-        double rms = calculateRMS(allSamples);
         double rmsDb = 20 * Math.log10(Math.abs(rms) + 1e-10);
-        rmsValueLabel.setText(String.format("RMS Level: %.2f dB", rmsDb));
-        rmsProgressBar.setProgress(Math.max(0, Math.min(1, (rmsDb + 60) / 60))); // -60dB to 0dB range
-
-        // Calculate Peak
-        double peak = Arrays.stream(allSamples).map(Math::abs).max().orElse(0.0);
         double peakDb = 20 * Math.log10(peak + 1e-10);
-        peakValueLabel.setText(String.format("Peak Level: %.2f dB", peakDb));
-        peakProgressBar.setProgress(Math.max(0, Math.min(1, (peakDb + 60) / 60)));
 
-        // Calculate Dynamic Range
-        double min = Arrays.stream(allSamples).map(Math::abs).filter(x -> x > 1e-10).min().orElse(1e-10);
-        double dynamicRange = 20 * Math.log10(peak / min);
-        dynamicRangeValueLabel.setText(String.format("Dynamic Range: %.1f dB", dynamicRange));
-        dynamicRangeProgressBar.setProgress(Math.max(0, Math.min(1, dynamicRange / 120))); // 0-120dB range
-
-        // Estimate SNR (simplified)
-        double snr = estimateSignalToNoiseRatio(allSamples);
-        signalToNoiseValueLabel.setText(String.format("SNR: %.1f dB", snr));
-        signalToNoiseProgressBar.setProgress(Math.max(0, Math.min(1, (snr + 20) / 80))); // -20dB to 60dB range
+        originalRMSLabel.setText(String.format("RMS Level: %.2f dB", rmsDb));
+        originalPeakLabel.setText(String.format("Peak Level: %.2f dB", peakDb));
     }
 
-    private void updateFrequencyAnalysis() {
-        // Simplified frequency analysis - in a real implementation, you'd use FFT
-        double[] allSamples = getAllSamplesFlattened();
-
-        // Simulate frequency band analysis (this is a simplified approach)
-        double lowFreqEnergy = 0.2 + Math.random() * 0.3; // 20-50%
-        double midFreqEnergy = 0.4 + Math.random() * 0.2; // 40-60%
-        double highFreqEnergy = 1.0 - lowFreqEnergy - midFreqEnergy;
-
-        // Update progress bars
-        lowFreqLabel.setText(String.format("Low Freq (20-250 Hz): %.1f%%", lowFreqEnergy * 100));
-        lowFreqProgressBar.setProgress(lowFreqEnergy);
-
-        midFreqLabel.setText(String.format("Mid Freq (250-4000 Hz): %.1f%%", midFreqEnergy * 100));
-        midFreqProgressBar.setProgress(midFreqEnergy);
-
-        highFreqLabel.setText(String.format("High Freq (4000+ Hz): %.1f%%", highFreqEnergy * 100));
-        highFreqProgressBar.setProgress(highFreqEnergy);
-
-        // Update pie chart with top 5 frequency bands
-        frequencyDistributionChart.getData().clear();
-        frequencyDistributionChart.getData().addAll(
-                new PieChart.Data("Low (20-250 Hz)", lowFreqEnergy * 100),
-                new PieChart.Data("Low-Mid (250-1K Hz)", midFreqEnergy * 0.4 * 100),
-                new PieChart.Data("Mid (1K-2K Hz)", midFreqEnergy * 0.4 * 100),
-                new PieChart.Data("High-Mid (2K-4K Hz)", midFreqEnergy * 0.2 * 100),
-                new PieChart.Data("High (4K+ Hz)", highFreqEnergy * 100)
-        );
-    }
-
-    private void updateChannelStatistics() {
-        if (spectrumAnalyzer.channels < 2) {
-            // Hide stereo-specific statistics for mono
-            leftChannelRMSLabel.setVisible(false);
-            leftChannelRMSBar.setVisible(false);
-            rightChannelRMSLabel.setVisible(false);
-            rightChannelRMSBar.setVisible(false);
-            stereoBalanceLabel.setVisible(false);
-            stereoBalanceBar.setVisible(false);
+    private void updateFilteredSignalStats() {
+        if (spectrumAnalyzer.processedSignal == null || spectrumAnalyzer.processedSignal.length == 0) {
+            clearFilteredStats();
             return;
         }
 
-        // Show stereo statistics
-        leftChannelRMSLabel.setVisible(true);
-        leftChannelRMSBar.setVisible(true);
-        rightChannelRMSLabel.setVisible(true);
-        rightChannelRMSBar.setVisible(true);
-        stereoBalanceLabel.setVisible(true);
-        stereoBalanceBar.setVisible(true);
+        // Basic info (same as original for channels and sample rate)
+        filteredChannelsLabel.setText("Channels: " + spectrumAnalyzer.channels);
+        filteredSampleRateLabel.setText("Sample Rate: " + spectrumAnalyzer.sampleRate + " Hz");
 
-        // Calculate RMS for each channel
-        double leftRMS = calculateRMS(spectrumAnalyzer.originalSignal[0]);
-        double rightRMS = calculateRMS(spectrumAnalyzer.originalSignal[1]);
+        int samples = spectrumAnalyzer.processedSignal[0].length;
+        double duration = (double) samples / spectrumAnalyzer.sampleRate;
+        filteredDurationLabel.setText(String.format("Duration: %.2f seconds", duration));
 
-        double leftRMSDb = 20 * Math.log10(Math.abs(leftRMS) + 1e-10);
-        double rightRMSDb = 20 * Math.log10(Math.abs(rightRMS) + 1e-10);
+        // Audio statistics
+        double[] mixedSignal = getMixedDownSignal(spectrumAnalyzer.processedSignal);
+        double rms = calculateRMS(mixedSignal);
+        double peak = Arrays.stream(mixedSignal).map(Math::abs).max().orElse(0.0);
 
-        leftChannelRMSLabel.setText(String.format("Left Channel RMS: %.2f dB", leftRMSDb));
-        leftChannelRMSBar.setProgress(Math.max(0, Math.min(1, (leftRMSDb + 60) / 60)));
+        double rmsDb = 20 * Math.log10(Math.abs(rms) + 1e-10);
+        double peakDb = 20 * Math.log10(peak + 1e-10);
 
-        rightChannelRMSLabel.setText(String.format("Right Channel RMS: %.2f dB", rightRMSDb));
-        rightChannelRMSBar.setProgress(Math.max(0, Math.min(1, (rightRMSDb + 60) / 60)));
-
-        // Calculate stereo balance
-        double balance = leftRMS / (leftRMS + rightRMS + 1e-10);
-        stereoBalanceLabel.setText(String.format("Stereo Balance: L%.0f%% - R%.0f%%",
-                balance * 100, (1 - balance) * 100));
-        stereoBalanceBar.setProgress(balance);
+        filteredRMSLabel.setText(String.format("RMS Level: %.2f dB", rmsDb));
+        filteredPeakLabel.setText(String.format("Peak Level: %.2f dB", peakDb));
     }
 
-    private double[] getAllSamplesFlattened() {
-        int totalSamples = spectrumAnalyzer.originalSignal[0].length * spectrumAnalyzer.channels;
-        double[] allSamples = new double[totalSamples];
-        int index = 0;
+    private void updateTopFrequencies() {
+        frequenciesContainer.getChildren().clear();
 
-        for (int ch = 0; ch < spectrumAnalyzer.channels; ch++) {
-            for (int i = 0; i < spectrumAnalyzer.originalSignal[ch].length; i++) {
-                allSamples[index++] = spectrumAnalyzer.originalSignal[ch][i];
-            }
+        // Use processed signal if available, otherwise original
+        double[][] signalToAnalyze = (spectrumAnalyzer.processedSignal != null && spectrumAnalyzer.processedSignal.length > 0)
+                ? spectrumAnalyzer.processedSignal
+                : spectrumAnalyzer.originalSignal;
+
+        if (signalToAnalyze == null || signalToAnalyze.length == 0) {
+            Label noDataLabel = new Label("No signal data available");
+            noDataLabel.setStyle("-fx-text-fill: #888888; -fx-font-size: 12px;");
+            frequenciesContainer.getChildren().add(noDataLabel);
+            return;
         }
 
-        return allSamples;
+        List<FrequencyPeak> topFrequencies = findTopFrequencies(signalToAnalyze);
+
+        for (int i = 0; i < topFrequencies.size(); i++) {
+            FrequencyPeak peak = topFrequencies.get(i);
+            Label freqLabel = new Label(String.format("%d. %.1f Hz (%.2f dB)",
+                    i + 1, peak.frequency, peak.magnitude));
+            freqLabel.setStyle("-fx-text-fill: #E0E0E0; -fx-font-size: 12px;");
+            frequenciesContainer.getChildren().add(freqLabel);
+        }
+    }
+
+    private void clearOriginalStats() {
+        originalChannelsLabel.setText("Channels: N/A");
+        originalSampleRateLabel.setText("Sample Rate: N/A");
+        originalDurationLabel.setText("Duration: N/A");
+        originalRMSLabel.setText("RMS Level: N/A");
+        originalPeakLabel.setText("Peak Level: N/A");
+    }
+
+    private void clearFilteredStats() {
+        filteredChannelsLabel.setText("Channels: N/A");
+        filteredSampleRateLabel.setText("Sample Rate: N/A");
+        filteredDurationLabel.setText("Duration: N/A");
+        filteredRMSLabel.setText("RMS Level: N/A");
+        filteredPeakLabel.setText("Peak Level: N/A");
+    }
+
+    private double[] getMixedDownSignal(double[][] signal) {
+        int sampleCount = signal[0].length;
+        double[] monoSignal = new double[sampleCount];
+
+        for (int i = 0; i < sampleCount; i++) {
+            double sum = 0;
+            for (int ch = 0; ch < signal.length; ch++) {
+                sum += signal[ch][i];
+            }
+            monoSignal[i] = sum / signal.length;
+        }
+
+        return monoSignal;
     }
 
     private double calculateRMS(double[] samples) {
@@ -388,16 +292,68 @@ public class StatisticPanel extends VBox {
         return Math.sqrt(sum / samples.length);
     }
 
-    private double estimateSignalToNoiseRatio(double[] samples) {
-        // Simplified SNR estimation
-        // In a real implementation, you'd analyze quiet sections vs signal sections
-        double rms = calculateRMS(samples);
-        double peak = Arrays.stream(samples).map(Math::abs).max().orElse(0.0);
+    private void applyHanningWindow(double[] data) {
+        int N = data.length;
+        for (int i = 0; i < N; i++) {
+            double window = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+            data[i] *= window;
+        }
+    }
 
-        // Estimate noise floor as a percentage of RMS
-        double noiseFloor = rms * 0.1; // Assume noise is 10% of RMS
-        double signalLevel = peak;
+    private List<FrequencyPeak> findTopFrequencies(double[][] signal) {
+        double[] monoSignal = getMixedDownSignal(signal);
 
-        return 20 * Math.log10(signalLevel / (noiseFloor + 1e-10));
+        // Use power-of-2 frame size for FFT
+        int frameSize = 4096;
+        double overlapRatio = 0.5;
+        int hopSize = (int) (frameSize * (1 - overlapRatio));
+
+        FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+
+        // Accumulate magnitudes across all frames
+        double[] totalMagnitudes = new double[frameSize / 2];
+        int numFrames = 0;
+
+        for (int start = 0; start + frameSize <= monoSignal.length; start += hopSize) {
+            double[] frame = Arrays.copyOfRange(monoSignal, start, start + frameSize);
+            applyHanningWindow(frame);
+
+            Complex[] fftResult = fft.transform(frame, TransformType.FORWARD);
+
+            for (int i = 1; i < frameSize / 2; i++) { // Skip DC component
+                totalMagnitudes[i] += fftResult[i].abs();
+            }
+            numFrames++;
+        }
+
+        // Average and find peaks
+        List<FrequencyPeak> peaks = new ArrayList<>();
+        double freqPerBin = (double) spectrumAnalyzer.sampleRate / frameSize;
+
+        for (int i = 1; i < totalMagnitudes.length; i++) {
+            if (numFrames > 0) {
+                totalMagnitudes[i] /= numFrames;
+            }
+
+            double frequency = i * freqPerBin;
+            double magnitudeDb = 20 * Math.log10(totalMagnitudes[i] + 1e-10);
+
+            peaks.add(new FrequencyPeak(frequency, magnitudeDb));
+        }
+
+        // Sort by magnitude and return top 5
+        peaks.sort((a, b) -> Double.compare(b.magnitude, a.magnitude));
+        return peaks.subList(0, Math.min(5, peaks.size()));
+    }
+
+    // Helper class for frequency peaks
+    private static class FrequencyPeak {
+        public final double frequency;
+        public final double magnitude;
+
+        public FrequencyPeak(double frequency, double magnitude) {
+            this.frequency = frequency;
+            this.magnitude = magnitude;
+        }
     }
 }

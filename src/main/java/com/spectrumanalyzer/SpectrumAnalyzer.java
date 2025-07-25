@@ -136,6 +136,7 @@ public class SpectrumAnalyzer extends Application {
     private int getChannels() {
         Long channels = audioProperties.get("Channels");
         if (channels != null) {
+            System.out.println(channels.intValue());
             return channels.intValue();
         }
         return 1; // default

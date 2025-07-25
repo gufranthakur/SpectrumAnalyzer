@@ -69,6 +69,8 @@ public class ControlPanel extends VBox {
                 makeSeparator(),
                 parameterBox,
                 buttonBox,
+                analyzer.dashboardPanel.statusLabel,
+                analyzer.dashboardPanel.progressBar,
                 makeSeparator(),
                 settingsBox
         );
@@ -163,7 +165,7 @@ public class ControlPanel extends VBox {
         rippleField.setPrefWidth(85);
 
 
-        orderSlider = new Slider(1, 24, 7);
+        orderSlider = new Slider(1, 25, 7);
         orderSlider.setShowTickLabels(true);
         orderSlider.setShowTickMarks(true);
         orderSlider.setMajorTickUnit(1);

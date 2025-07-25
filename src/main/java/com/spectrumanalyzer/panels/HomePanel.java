@@ -1,5 +1,7 @@
 package com.spectrumanalyzer.panels;
 
+import com.github.psambit9791.jdsp.io.WAV;
+import com.github.psambit9791.wavfile.WavFileException;
 import com.spectrumanalyzer.SpectrumAnalyzer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -9,12 +11,12 @@ import javafx.scene.paint.*;
 import javafx.stage.FileChooser;
 
 import java.io.File;
+import java.io.IOException;
 
 public class HomePanel extends VBox {
     private SpectrumAnalyzer analyzer;
     private Label fileLabel;
     private Button openButton;
-    private Button exportButton;
 
     public HomePanel(SpectrumAnalyzer analyzer) {
         this.analyzer = analyzer;
@@ -42,7 +44,7 @@ public class HomePanel extends VBox {
         VBox.setVgrow(topSpacer, Priority.ALWAYS);
 
         Label titleLabel = new Label("Spectrum Analyzer");
-        titleLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: white;");
+        titleLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;");
 
         fileLabel = new Label("No file selected");
         fileLabel.setStyle("-fx-font-size: 15px; -fx-text-fill: #bbbbbb;");
@@ -51,10 +53,7 @@ public class HomePanel extends VBox {
         openButton.setStyle("-fx-background-color: #38ab03; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8px 16px;");
         openButton.setOnAction(e -> openFile());
 
-        exportButton = new Button("Export");
-        exportButton.setStyle("-fx-background-color: #444; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 8px 16px;");
-
-        VBox buttonBox = new VBox(12, openButton, exportButton);
+        VBox buttonBox = new VBox(12, openButton);
         buttonBox.setAlignment(Pos.CENTER);
 
         // Spacer below content
@@ -62,7 +61,7 @@ public class HomePanel extends VBox {
         VBox.setVgrow(bottomSpacer, Priority.ALWAYS);
 
         Label footerLabel = new Label("Developed at Rhosigma");
-        footerLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #888888;");
+        footerLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #888888;; -fx-font-weight: bold");
         footerLabel.setPadding(new Insets(10, 0, 10, 0));
 
         getChildren().addAll(topSpacer, titleLabel, fileLabel, buttonBox, bottomSpacer, footerLabel);
@@ -81,4 +80,5 @@ public class HomePanel extends VBox {
             analyzer.loadAudioFile(selectedFile.getAbsolutePath());
         }
     }
+
 }

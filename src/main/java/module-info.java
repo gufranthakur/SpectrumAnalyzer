@@ -3,6 +3,8 @@ module com.spectrumanalyzer {
     requires javafx.fxml;
     requires com.github.psambit9791.jdsp;
     requires atlantafx.base;
+    requires wavfile;
+    requires commons.math3;
 
 
     opens com.spectrumanalyzer to javafx.fxml;
