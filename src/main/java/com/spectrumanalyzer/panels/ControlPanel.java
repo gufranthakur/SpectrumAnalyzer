@@ -229,7 +229,7 @@ public class ControlPanel extends VBox {
 
         ToggleGroup viewGroup = new ToggleGroup();
         viewTimeDomainButton.setToggleGroup(viewGroup);
-        viewBothDomainButton.setStyle("-fx-background-color: #171716;");
+        viewTimeDomainButton.setStyle("-fx-background-color: #171716;");
         viewFrequencyDomainButton.setToggleGroup(viewGroup);
         viewFrequencyDomainButton.setStyle("-fx-background-color: #171716;");
         viewBothDomainButton.setToggleGroup(viewGroup);
