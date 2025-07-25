@@ -1,14 +1,10 @@
-package com.spectrumanalyzer;
+package com.spectrumanalyzer.panels;
 
+import com.spectrumanalyzer.SpectrumAnalyzer;
 import javafx.scene.chart.*;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.input.ScrollEvent;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.control.Slider;
-import javafx.geometry.Bounds;
 import com.github.psambit9791.jdsp.transform.DiscreteFourier;
 
 import java.util.Arrays;
@@ -20,21 +16,20 @@ public class DashboardPanel extends VBox {
 
     // Zoom and pan functionality
     private LineChart<Number, Number> selectedChart = null;
-    private boolean ctrlPressed = false;
-    private double lastMouseX = 0;
-    private double lastMouseY = 0;
-    private boolean isDragging = false;
 
     // Global zoom rate control - can be adjusted at runtime
     public double zoomRate = 0.8; // Default 30% zoom increment (0.7/1.4 factors)
 
     // Horizontal zoom functionality
     public Slider horizontalZoomSlider;
+    public Slider horizontalMoveSlider;
+
     private double baseXRange = 0; // Store the original X range
     private double baseXCenter = 0; // Store the original X center
 
     public DashboardPanel(SpectrumAnalyzer analyzer) {
         this.analyzer = analyzer;
+        this.setStyle("-fx-background-color: #1e1e1e;");
         setupUI();
         setupZoomAndPan();
     }
@@ -45,6 +40,7 @@ public class DashboardPanel extends VBox {
 
         // Create horizontal zoom slider
         horizontalZoomSlider = createHorizontalZoomSlider();
+        horizontalMoveSlider = createHorizontalMoveSlider();
 
         NumberAxis timeXAxis = new NumberAxis();
         NumberAxis timeYAxis = new NumberAxis();
@@ -92,6 +88,22 @@ public class DashboardPanel extends VBox {
         return slider;
     }
 
+    private Slider createHorizontalMoveSlider() {
+        Slider slider = new Slider(-1.0, 1.0, 0.0); // Left (-1) to right (+1), center at 0
+        slider.setShowTickLabels(true);
+        slider.setShowTickMarks(true);
+        slider.setMajorTickUnit(0.5);
+        slider.setMinorTickCount(4);
+        slider.setPrefWidth(300);
+
+        slider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            applyHorizontalPan(newVal.doubleValue());
+        });
+
+        return slider;
+    }
+
+
     private void applyHorizontalZoom(double zoomFactor) {
         if (selectedChart == null) return;
 
@@ -112,6 +124,24 @@ public class DashboardPanel extends VBox {
         xAxis.setUpperBound(baseXCenter + newRange / 2);
     }
 
+    private void applyHorizontalPan(double positionFactor) {
+        if (selectedChart == null || baseXRange == 0) return;
+
+        NumberAxis xAxis = (NumberAxis) selectedChart.getXAxis();
+
+        // Limit pan range to +/- 50% of original data window width
+        double maxShift = baseXRange / 2.0;
+        double offset = maxShift * positionFactor;
+
+        double newCenter = baseXCenter + offset;
+        double newRange = xAxis.getUpperBound() - xAxis.getLowerBound();
+
+        xAxis.setAutoRanging(false);
+        xAxis.setLowerBound(newCenter - newRange / 2);
+        xAxis.setUpperBound(newCenter + newRange / 2);
+    }
+
+
     private void setupZoomAndPan() {
         // Make the panel focusable to receive key events
         this.setFocusTraversable(true);
@@ -122,10 +152,6 @@ public class DashboardPanel extends VBox {
         // Setup for frequency domain chart
         setupChartInteraction(frequencyChart);
 
-        // Global key event handling
-        this.setOnKeyPressed(this::handleKeyPressed);
-        this.setOnKeyReleased(this::handleKeyReleased);
-
         // Request focus when clicked
         this.setOnMouseClicked(e -> this.requestFocus());
     }
@@ -134,13 +160,6 @@ public class DashboardPanel extends VBox {
         // Chart selection on click and double-click reset
         chart.setOnMouseClicked(this::handleChartClick);
 
-        // Mouse wheel zoom
-        chart.setOnScroll(this::handleScroll);
-
-        // Mouse drag for panning
-        chart.setOnMousePressed(this::handleMousePressed);
-        chart.setOnMouseDragged(this::handleMouseDragged);
-        chart.setOnMouseReleased(this::handleMouseReleased);
     }
 
     private void handleChartClick(MouseEvent event) {
@@ -165,138 +184,16 @@ public class DashboardPanel extends VBox {
         event.consume();
     }
 
-    private void deselectChart() {
-        selectedChart = null;
-        // Reset horizontal zoom slider and base values
-        horizontalZoomSlider.setValue(1.0);
-        baseXRange = 0;
-    }
-
-
-
-    private void handleKeyPressed(KeyEvent event) {
-        if (event.getCode() == KeyCode.CONTROL) {
-            ctrlPressed = true;
-        }
-    }
-
-    private void handleKeyReleased(KeyEvent event) {
-        if (event.getCode() == KeyCode.CONTROL) {
-            ctrlPressed = false;
-        }
-    }
-
-    private void handleScroll(ScrollEvent event) {
-        if (!ctrlPressed || selectedChart == null) {
-            return;
-        }
-
-        LineChart<Number, Number> chart = (LineChart<Number, Number>) event.getSource();
-        if (chart != selectedChart) {
-            return;
-        }
-
-        NumberAxis xAxis = (NumberAxis) chart.getXAxis();
-        NumberAxis yAxis = (NumberAxis) chart.getYAxis();
-
-        double deltaY = event.getDeltaY();
-        double zoomFactor = deltaY > 0 ? (1.0 - zoomRate) : (1.0 + zoomRate); // Use configurable zoom rate
-
-        // Get current bounds
-        double xLower = xAxis.getLowerBound();
-        double xUpper = xAxis.getUpperBound();
-        double yLower = yAxis.getLowerBound();
-        double yUpper = yAxis.getUpperBound();
-
-        // Calculate zoom center (mouse position)
-        double mouseXRatio = event.getX() / chart.getWidth();
-        double mouseYRatio = 1.0 - (event.getY() / chart.getHeight()); // Invert Y
-
-        // Calculate new bounds
-        double xRange = xUpper - xLower;
-        double yRange = yUpper - yLower;
-        double newXRange = xRange * zoomFactor;
-        double newYRange = yRange * zoomFactor;
-
-        double xCenter = xLower + xRange * mouseXRatio;
-        double yCenter = yLower + yRange * mouseYRatio;
-
-        double newXLower = xCenter - newXRange * mouseXRatio;
-        double newXUpper = xCenter + newXRange * (1 - mouseXRatio);
-        double newYLower = yCenter - newYRange * mouseYRatio;
-        double newYUpper = yCenter + newYRange * (1 - mouseYRatio);
-
-        // Apply new bounds
-        xAxis.setAutoRanging(false);
-        yAxis.setAutoRanging(false);
-        xAxis.setLowerBound(newXLower);
-        xAxis.setUpperBound(newXUpper);
-        yAxis.setLowerBound(newYLower);
-        yAxis.setUpperBound(newYUpper);
-
-        event.consume();
-    }
-
-    private void handleMousePressed(MouseEvent event) {
-        if (!ctrlPressed || selectedChart == null) {
-            return;
-        }
-
-        LineChart<Number, Number> chart = (LineChart<Number, Number>) event.getSource();
-        if (chart != selectedChart) {
-            return;
-        }
-
-        lastMouseX = event.getX();
-        lastMouseY = event.getY();
-        isDragging = true;
-        event.consume();
-    }
-
-    private void handleMouseDragged(MouseEvent event) {
-        if (!ctrlPressed || !isDragging || selectedChart == null) {
-            return;
-        }
-
-        LineChart<Number, Number> chart = (LineChart<Number, Number>) event.getSource();
-        if (chart != selectedChart) {
-            return;
-        }
-
-        NumberAxis xAxis = (NumberAxis) chart.getXAxis();
-        NumberAxis yAxis = (NumberAxis) chart.getYAxis();
-
-        double deltaX = event.getX() - lastMouseX;
-        double deltaY = event.getY() - lastMouseY;
-
-        // Calculate pan amounts based on axis ranges and chart size
-        double xRange = xAxis.getUpperBound() - xAxis.getLowerBound();
-        double yRange = yAxis.getUpperBound() - yAxis.getLowerBound();
-
-        double xPan = -(deltaX / chart.getWidth()) * xRange;
-        double yPan = (deltaY / chart.getHeight()) * yRange; // Invert Y
-
-        // Apply pan
-        xAxis.setLowerBound(xAxis.getLowerBound() + xPan);
-        xAxis.setUpperBound(xAxis.getUpperBound() + xPan);
-        yAxis.setLowerBound(yAxis.getLowerBound() + yPan);
-        yAxis.setUpperBound(yAxis.getUpperBound() + yPan);
-
-        lastMouseX = event.getX();
-        lastMouseY = event.getY();
-        event.consume();
-    }
-
-    private void handleMouseReleased(MouseEvent event) {
-        isDragging = false;
-    }
-
     // Method to reset zoom for a specific chart
     private void resetChartZoom(LineChart<Number, Number> chart) {
         NumberAxis xAxis = (NumberAxis) chart.getXAxis();
         NumberAxis yAxis = (NumberAxis) chart.getYAxis();
         xAxis.setAutoRanging(true);
         yAxis.setAutoRanging(true);
+
+        horizontalZoomSlider.setValue(1.0);
+        horizontalMoveSlider.setValue(0.0);
+        baseXRange = 0;
 
         // Reset horizontal zoom slider
         horizontalZoomSlider.setValue(1.0);
@@ -318,6 +215,11 @@ public class DashboardPanel extends VBox {
         // Reset horizontal zoom slider
         horizontalZoomSlider.setValue(1.0);
         baseXRange = 0;
+
+        horizontalZoomSlider.setValue(1.0);
+        horizontalMoveSlider.setValue(0.0);
+        baseXRange = 0;
+
     }
 
     public void updatePlots() {

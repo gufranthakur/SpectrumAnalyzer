@@ -7,4 +7,6 @@ module com.spectrumanalyzer {
 
     opens com.spectrumanalyzer to javafx.fxml;
     exports com.spectrumanalyzer;
+    exports com.spectrumanalyzer.panels;
+    opens com.spectrumanalyzer.panels to javafx.fxml;
 }

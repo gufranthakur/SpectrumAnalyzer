@@ -1,13 +1,13 @@
-package com.spectrumanalyzer;
+package com.spectrumanalyzer.panels;
 
+import com.spectrumanalyzer.SpectrumAnalyzer;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.chart.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.paint.Color;
+
 import java.util.*;
-import java.util.stream.IntStream;
 
 public class StatisticPanel extends VBox {
     private SpectrumAnalyzer spectrumAnalyzer;
@@ -49,6 +49,7 @@ public class StatisticPanel extends VBox {
 
     public StatisticPanel(SpectrumAnalyzer spectrumAnalyzer) {
         this.spectrumAnalyzer = spectrumAnalyzer;
+        this.setStyle("-fx-background-color: #171716");
         initializeComponents();
         setupLayout();
         setStyle();

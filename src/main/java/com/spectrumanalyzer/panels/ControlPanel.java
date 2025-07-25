@@ -1,6 +1,8 @@
-package com.spectrumanalyzer;
+package com.spectrumanalyzer.panels;
 
+import com.spectrumanalyzer.SpectrumAnalyzer;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
@@ -16,11 +18,16 @@ public class ControlPanel extends VBox {
     private TextField rippleField;
     private Slider orderSlider;
 
+    private ComboBox<String> cutOffUnitBox, lowCutOffUnitBox, highCutoffUnitBox;
+
+    private Button resetViewsButton;
+
     private Slider zoomSlider;
     private RadioButton viewTimeDomainButton, viewFrequencyDomainButton, viewBothDomainButton;
 
     public ControlPanel(SpectrumAnalyzer analyzer) {
         this.analyzer = analyzer;
+        this.setStyle("-fx-background-color: #171716");
         setMaxWidth(Double.MAX_VALUE);
         setPadding(new Insets(10));
         setSpacing(10);
@@ -54,7 +61,7 @@ public class ControlPanel extends VBox {
         HBox.setHgrow(applyButton, Priority.ALWAYS);
         HBox.setHgrow(resetButton, Priority.ALWAYS);
 
-        VBox settingsBox = createSettingsBox();
+        VBox settingsBox = createViewsBox();
 
         getChildren().addAll(
                 titleLabel,
@@ -132,18 +139,31 @@ public class ControlPanel extends VBox {
         paramBox.setPadding(new Insets(10));
 
         Label titleLabel = new Label("Parameters");
-        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+        titleLabel.setStyle("-fx-font-size: 20; -fx-font-weight: bold;");
+
+        cutOffUnitBox = new ComboBox<>();
+        cutOffUnitBox.getItems().addAll("Hz", "kHz", "MHz");
+        cutOffUnitBox.setValue("Hz");
+
+        lowCutOffUnitBox = new ComboBox<>();
+        lowCutOffUnitBox.getItems().addAll("Hz", "kHz", "MHz");
+        lowCutOffUnitBox.setValue("Hz");
+
+        highCutoffUnitBox = new ComboBox<>();
+        highCutoffUnitBox.getItems().addAll("Hz", "kHz", "MHz");
+        highCutoffUnitBox.setValue("Hz");
 
         cutoffField = new TextField("1000");
+        cutoffField.setPrefWidth(85);
         lowCutoffField = new TextField("500");
+        lowCutoffField.setPrefWidth(85);
         highCutoffField = new TextField("2000");
+        highCutoffField.setPrefWidth(85);
         rippleField = new TextField("1.0");
+        rippleField.setPrefWidth(85);
 
-        for (TextField tf : new TextField[]{cutoffField, lowCutoffField, highCutoffField, rippleField}) {
-            tf.setMaxWidth(Double.MAX_VALUE);
-        }
 
-        orderSlider = new Slider(1, 10, 4);
+        orderSlider = new Slider(1, 24, 7);
         orderSlider.setShowTickLabels(true);
         orderSlider.setShowTickMarks(true);
         orderSlider.setMajorTickUnit(1);
@@ -154,21 +174,39 @@ public class ControlPanel extends VBox {
 
         paramBox.getChildren().addAll(
                 titleLabel,
-                labeledField("Cutoff Frequency:", cutoffField),
-                labeledField("Low Cutoff:", lowCutoffField),
-                labeledField("High Cutoff:", highCutoffField),
-                labeledSlider("Filter Order:", orderSlider),
-                labeledField("Ripple (dB):", rippleField)
+                createStyledLabel("Cut off:"),
+                createHBox(cutoffField, cutOffUnitBox),
+                createStyledLabel("Low Cut off:"),
+                createHBox(lowCutoffField, lowCutOffUnitBox),
+                createStyledLabel("High Cut off:"),
+                createHBox(highCutoffField, highCutoffUnitBox),
+                labeledSlider("Filter Order:", orderSlider)
         );
 
         return paramBox;
     }
 
-    private VBox createSettingsBox() {
+    private HBox createHBox(Node node, Node node2) {
+        HBox box = new HBox(5);
+        box.getChildren().addAll(node, node2);
+        return box;
+    }
+
+    private Label createStyledLabel(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-font-size: 14px;");
+        return label;
+    }
+
+    private VBox createViewsBox() {
         VBox box = new VBox(10);
 
         Label titleLabel = new Label("Settings");
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        resetViewsButton = new Button("Reset Views");
+        resetViewsButton.setStyle("-fx-background-color: #e37a09;");
+        resetViewsButton.setOnMouseClicked(e -> analyzer.dashboardPanel.resetAllZoom());
 
         zoomSlider = new Slider(1.0, 10.0, 4.0);
         zoomSlider.setShowTickLabels(true);
@@ -202,10 +240,11 @@ public class ControlPanel extends VBox {
 
         box.getChildren().addAll(
                 titleLabel,
-                new Label("Zoom factor:"),
-                zoomSlider,
                 new Label("Horizontal Zoom"),
                 analyzer.dashboardPanel.horizontalZoomSlider,
+                new Label("Horizontal Movement"),
+                analyzer.dashboardPanel.horizontalMoveSlider,
+                resetViewsButton,
                 viewBothDomainButton,
                 viewTimeDomainButton,
                 viewFrequencyDomainButton
@@ -297,12 +336,6 @@ public class ControlPanel extends VBox {
         Separator separator = new Separator();
         separator.setPadding(new Insets(6, 0, 6, 0));
         return separator;
-    }
-
-    private VBox labeledField(String label, TextField field) {
-        VBox box = new VBox(5, new Label(label), field);
-        field.setMaxWidth(Double.MAX_VALUE);
-        return box;
     }
 
     private VBox labeledSlider(String label, Slider slider) {
