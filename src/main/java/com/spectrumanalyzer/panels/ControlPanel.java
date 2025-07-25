@@ -229,8 +229,11 @@ public class ControlPanel extends VBox {
 
         ToggleGroup viewGroup = new ToggleGroup();
         viewTimeDomainButton.setToggleGroup(viewGroup);
+        viewBothDomainButton.setStyle("-fx-background-color: #171716;");
         viewFrequencyDomainButton.setToggleGroup(viewGroup);
+        viewFrequencyDomainButton.setStyle("-fx-background-color: #171716;");
         viewBothDomainButton.setToggleGroup(viewGroup);
+        viewBothDomainButton.setStyle("-fx-background-color: #171716;");
 
         for (RadioButton rb : new RadioButton[]{viewTimeDomainButton, viewFrequencyDomainButton, viewBothDomainButton}) {
             rb.setMaxWidth(Double.MAX_VALUE);
@@ -283,6 +286,11 @@ public class ControlPanel extends VBox {
             int order = (int) orderSlider.getValue();
             double ripple = Double.parseDouble(rippleField.getText());
 
+            // Convert units
+            cutoff *= getUnitMultiplier(cutOffUnitBox.getValue());
+            lowCutoff *= getUnitMultiplier(lowCutOffUnitBox.getValue());
+            highCutoff *= getUnitMultiplier(highCutoffUnitBox.getValue());
+
             String filterType = getSelectedFilterType();
             if (filterType != null) {
                 analyzer.filterOperator.applyFilter(filterType, cutoff, lowCutoff, highCutoff, order, ripple);
@@ -294,6 +302,16 @@ public class ControlPanel extends VBox {
             analyzer.showAlert("Invalid parameter values");
         }
     }
+
+    private double getUnitMultiplier(String unit) {
+        return switch (unit) {
+            case "Hz" -> 1.0;
+            case "kHz" -> 1_000.0;
+            case "MHz" -> 1_000_000.0;
+            default -> 1.0;
+        };
+    }
+
 
     private void resetSignal() {
         if (analyzer.originalSignal != null) {
