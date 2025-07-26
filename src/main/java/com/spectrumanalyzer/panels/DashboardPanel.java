@@ -82,7 +82,6 @@ public class DashboardPanel extends VBox {
         timeChart = new LineChart<>(timeXAxis, timeYAxis);
         timeChart.setTitle("Time Domain");
         timeChart.setCreateSymbols(false);
-        timeChart.setLegendVisible(true);
         timeChart.setAnimated(false); // Disable animations for better performance
         VBox.setVgrow(timeChart, Priority.ALWAYS);
 
@@ -93,7 +92,6 @@ public class DashboardPanel extends VBox {
         frequencyChart = new LineChart<>(freqXAxis, freqYAxis);
         frequencyChart.setTitle("Frequency Domain");
         frequencyChart.setCreateSymbols(false);
-        frequencyChart.setLegendVisible(true);
         frequencyChart.setAnimated(false); // Disable animations for better performance
         VBox.setVgrow(frequencyChart, Priority.ALWAYS);
 

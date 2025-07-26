@@ -9,9 +9,7 @@ import javafx.scene.layout.*;
 public class ControlPanel extends VBox {
     private SpectrumAnalyzer analyzer;
     private Accordion filterAccordion;
-    private ToggleGroup basicFilterGroup;
-    private ToggleGroup butterworthGroup;
-    private ToggleGroup chebyshevGroup;
+    private ToggleGroup toggleGroup;
     private TextField cutoffField;
     private TextField lowCutoffField;
     private TextField highCutoffField;
@@ -84,7 +82,7 @@ public class ControlPanel extends VBox {
         VBox content = new VBox(10);
 
         content.setPadding(new Insets(10));
-        basicFilterGroup = new ToggleGroup();
+        toggleGroup = new ToggleGroup();
 
         RadioButton lowPass = new RadioButton("Low Pass");
         RadioButton highPass = new RadioButton("High Pass");
@@ -92,7 +90,7 @@ public class ControlPanel extends VBox {
         RadioButton bandStop = new RadioButton("Band Stop");
 
         for (RadioButton rb : new RadioButton[]{lowPass, highPass, bandPass, bandStop}) {
-            rb.setToggleGroup(basicFilterGroup);
+            rb.setToggleGroup(toggleGroup);
             rb.setMaxWidth(Double.MAX_VALUE);
         }
 
@@ -103,14 +101,13 @@ public class ControlPanel extends VBox {
     private TitledPane createButterworthPane() {
         VBox content = new VBox(10);
         content.setPadding(new Insets(10));
-        butterworthGroup = new ToggleGroup();
 
         RadioButton butterLow = new RadioButton("Butterworth Low Pass");
         RadioButton butterHigh = new RadioButton("Butterworth High Pass");
         RadioButton butterBand = new RadioButton("Butterworth Band Pass");
 
         for (RadioButton rb : new RadioButton[]{butterLow, butterHigh, butterBand}) {
-            rb.setToggleGroup(butterworthGroup);
+            rb.setToggleGroup(toggleGroup);
             rb.setMaxWidth(Double.MAX_VALUE);
         }
 
@@ -121,14 +118,13 @@ public class ControlPanel extends VBox {
     private TitledPane createChebyshevPane() {
         VBox content = new VBox(10);
         content.setPadding(new Insets(10));
-        chebyshevGroup = new ToggleGroup();
 
         RadioButton chebyLow = new RadioButton("Chebyshev Low Pass");
         RadioButton chebyHigh = new RadioButton("Chebyshev High Pass");
         RadioButton chebyBand = new RadioButton("Chebyshev Band Pass");
 
         for (RadioButton rb : new RadioButton[]{chebyLow, chebyHigh, chebyBand}) {
-            rb.setToggleGroup(chebyshevGroup);
+            rb.setToggleGroup(toggleGroup);
             rb.setMaxWidth(Double.MAX_VALUE);
         }
 
@@ -203,7 +199,7 @@ public class ControlPanel extends VBox {
     private VBox createViewsBox() {
         VBox box = new VBox(10);
 
-        Label titleLabel = new Label("Settings");
+        Label titleLabel = new Label("View Settings");
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
         resetViewsButton = new Button("Reset Views");
@@ -259,13 +255,7 @@ public class ControlPanel extends VBox {
     }
 
     private String getSelectedFilterType() {
-        RadioButton selected = (RadioButton) basicFilterGroup.getSelectedToggle();
-        if (selected != null) return selected.getText();
-
-        selected = (RadioButton) butterworthGroup.getSelectedToggle();
-        if (selected != null) return selected.getText();
-
-        selected = (RadioButton) chebyshevGroup.getSelectedToggle();
+        RadioButton selected = (RadioButton) toggleGroup.getSelectedToggle();
         if (selected != null) return selected.getText();
 
         return null;
@@ -321,7 +311,7 @@ public class ControlPanel extends VBox {
     }
 
     private void setupFilterToggleListeners() {
-        ToggleGroup[] allGroups = {basicFilterGroup, butterworthGroup, chebyshevGroup};
+        ToggleGroup[] allGroups = {toggleGroup};
 
         for (ToggleGroup group : allGroups) {
             group.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {

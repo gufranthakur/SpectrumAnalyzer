@@ -28,8 +28,8 @@ public class HomePanel extends VBox {
         BackgroundFill backgroundFill = new BackgroundFill(
                 new LinearGradient(
                         0, 0, 0, 1, true, CycleMethod.NO_CYCLE,
-                        new Stop(0, Color.web("#2b2b2b")),
-                        new Stop(1, Color.web("#171717"))
+                        new Stop(0, Color.rgb(20, 20, 20)),
+                        new Stop(1, Color.rgb(40, 40, 40))
                 ),
                 CornerRadii.EMPTY, Insets.EMPTY
         );
