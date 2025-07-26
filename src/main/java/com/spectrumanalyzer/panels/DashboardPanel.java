@@ -1,12 +1,12 @@
 package com.spectrumanalyzer.panels;
 
 import com.spectrumanalyzer.SpectrumAnalyzer;
+import javafx.scene.Node;
 import javafx.scene.chart.*;
 import javafx.scene.layout.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.control.*;
 import javafx.concurrent.Task;
-import javafx.concurrent.Worker;
 import javafx.application.Platform;
 import com.github.psambit9791.jdsp.transform.DiscreteFourier;
 
@@ -25,12 +25,6 @@ public class DashboardPanel extends VBox {
     public Label statusLabel;
     private volatile boolean processingInProgress = false;
 
-    // Cache for FFT results to avoid recalculation
-    private double[] cachedOriginalMagnitude;
-    private double[] cachedProcessedMagnitude;
-    private double[] cachedFrequencies;
-    private boolean fftCacheValid = false;
-
     // Zoom and pan functionality
     private LineChart<Number, Number> selectedChart = null;
     public double zoomRate = 0.8;
@@ -46,6 +40,9 @@ public class DashboardPanel extends VBox {
     private static final int MAX_FREQ_POINTS = 500;  // Reduced for better performance
     private static final int MAX_FFT_SIZE = 4096;    // Reduced for faster FFT
 
+    // Color constants for consistent styling
+    private static final String PROCESSED_COLOR = "#0066cc"; // Blue
+
     public DashboardPanel(SpectrumAnalyzer analyzer) {
         this.analyzer = analyzer;
         this.executorService = Executors.newSingleThreadExecutor(r -> {
@@ -60,7 +57,6 @@ public class DashboardPanel extends VBox {
 
     private void setupUI() {
         // Progress indicator
-
         progressBar = new ProgressBar();
         progressBar.setPrefWidth(200);
         progressBar.setVisible(false);
@@ -83,6 +79,7 @@ public class DashboardPanel extends VBox {
         timeChart.setTitle("Time Domain");
         timeChart.setCreateSymbols(false);
         timeChart.setAnimated(false); // Disable animations for better performance
+        timeChart.setLegendVisible(true); // Ensure legend is visible
         VBox.setVgrow(timeChart, Priority.ALWAYS);
 
         NumberAxis freqXAxis = new NumberAxis();
@@ -93,6 +90,7 @@ public class DashboardPanel extends VBox {
         frequencyChart.setTitle("Frequency Domain");
         frequencyChart.setCreateSymbols(false);
         frequencyChart.setAnimated(false); // Disable animations for better performance
+        frequencyChart.setLegendVisible(true); // Ensure legend is visible
         VBox.setVgrow(frequencyChart, Priority.ALWAYS);
 
         timeBox.getChildren().addAll(timeChart);
@@ -314,7 +312,7 @@ public class DashboardPanel extends VBox {
         XYChart.Series<Number, Number> currentFreqSeries;
 
         void prepareTimeDomainData(SpectrumAnalyzer analyzer) {
-            // Original signal
+            // Always show original signal if it exists
             if (analyzer.originalSignal != null && analyzer.originalSignal.length > 0) {
                 originalTimeSeries = new XYChart.Series<>();
                 originalTimeSeries.setName("Original Signal");
@@ -328,29 +326,68 @@ public class DashboardPanel extends VBox {
                 }
             }
 
-            // Current signal
-            currentTimeSeries = new XYChart.Series<>();
-            currentTimeSeries.setName(analyzer.originalSignal != null ? "Current Signal" : "Signal");
+            // Check if we should show processed signal (if it's different from original)
+            if (analyzer.processedSignal != null && analyzer.processedSignal.length > 0) {
+                boolean filterApplied = analyzer.originalSignal == null ||
+                        arraysEqual(analyzer.originalSignal[0], analyzer.processedSignal[0]);
 
-            double[] signal = analyzer.processedSignal[0];
-            int step = Math.max(1, signal.length / MAX_TIME_POINTS);
+                if (filterApplied) {
+                    currentTimeSeries = new XYChart.Series<>();
+                    currentTimeSeries.setName("Filtered Signal");
 
-            for (int i = 0; i < signal.length; i += step) {
-                double time = (double) i / analyzer.sampleRate;
-                currentTimeSeries.getData().add(new XYChart.Data<>(time, signal[i]));
+                    double[] signal = analyzer.processedSignal[0];
+                    int step = Math.max(1, signal.length / MAX_TIME_POINTS);
+
+                    for (int i = 0; i < signal.length; i += step) {
+                        double time = (double) i / analyzer.sampleRate;
+                        currentTimeSeries.getData().add(new XYChart.Data<>(time, signal[i]));
+                    }
+
+                    // Debug: Check if signals are actually different
+                    System.out.println("Filter applied - signals are different");
+                    System.out.println("Original first 3 values: " + analyzer.originalSignal[0][0] + ", " +
+                            analyzer.originalSignal[0][1] + ", " + analyzer.originalSignal[0][2]);
+                    System.out.println("Processed first 3 values: " + analyzer.processedSignal[0][0] + ", " +
+                            analyzer.processedSignal[0][1] + ", " + analyzer.processedSignal[0][2]);
+                } else {
+                    currentTimeSeries = null;
+                    System.out.println("No filter applied - signals are identical");
+                }
             }
         }
 
+        private boolean arraysEqual(double[] a, double[] b) {
+            if (a == null || b == null) return a != b;
+            if (a.length != b.length) return true;
+
+            // Use a more lenient comparison for floating point
+            for (int i = 0; i < Math.min(100, a.length); i++) { // Check first 100 samples for efficiency
+                if (Math.abs(a[i] - b[i]) > 1e-6) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         void prepareFrequencyDomainData(SpectrumAnalyzer analyzer) {
-            // Original signal spectrum
+            // Always show original spectrum if it exists
             if (analyzer.originalSignal != null && analyzer.originalSignal.length > 0) {
                 originalFreqSeries = createOptimizedFrequencyDomainSeries(analyzer.originalSignal[0],
                         analyzer.sampleRate, "Original Spectrum");
             }
 
-            // Current signal spectrum
-            currentFreqSeries = createOptimizedFrequencyDomainSeries(analyzer.processedSignal[0],
-                    analyzer.sampleRate, analyzer.originalSignal != null ? "Current Spectrum" : "Spectrum");
+            // Check if we should show processed spectrum (if it's different from original)
+            if (analyzer.processedSignal != null && analyzer.processedSignal.length > 0) {
+                boolean filterApplied = analyzer.originalSignal == null ||
+                        arraysEqual(analyzer.originalSignal[0], analyzer.processedSignal[0]);
+
+                if (filterApplied) {
+                    currentFreqSeries = createOptimizedFrequencyDomainSeries(analyzer.processedSignal[0],
+                            analyzer.sampleRate, "Filtered Spectrum");
+                } else {
+                    currentFreqSeries = null;
+                }
+            }
         }
 
         private XYChart.Series<Number, Number> createOptimizedFrequencyDomainSeries(double[] signal, double sampleRate, String seriesName) {
@@ -402,43 +439,61 @@ public class DashboardPanel extends VBox {
 
     // Update charts on UI thread with pre-computed data
     private void updateChartsWithData(PlotData plotData) {
-        // Update time domain chart
+        // Clear existing data
         timeChart.getData().clear();
-
-        if (plotData.originalTimeSeries != null) {
-            timeChart.getData().add(plotData.originalTimeSeries);
-            Platform.runLater(() -> {
-                if (plotData.originalTimeSeries.getNode() != null) {
-                    plotData.originalTimeSeries.getNode().setStyle("-fx-stroke: #ff6b35; -fx-stroke-width: 1px;");
-                }
-            });
-        }
-
-        timeChart.getData().add(plotData.currentTimeSeries);
-        Platform.runLater(() -> {
-            if (plotData.currentTimeSeries.getNode() != null) {
-                plotData.currentTimeSeries.getNode().setStyle("-fx-stroke: #0066cc; -fx-stroke-width: 2px;");
-            }
-        });
-
-        // Update frequency domain chart
         frequencyChart.getData().clear();
 
-        if (plotData.originalFreqSeries != null) {
-            frequencyChart.getData().add(plotData.originalFreqSeries);
-            Platform.runLater(() -> {
-                if (plotData.originalFreqSeries.getNode() != null) {
-                    plotData.originalFreqSeries.getNode().setStyle("-fx-stroke: #ff6b35; -fx-stroke-width: 1px;");
-                }
-            });
+        // Time domain chart - add original first (series0 = orange)
+        if (plotData.originalTimeSeries != null) {
+            timeChart.getData().add(plotData.originalTimeSeries); // series0 (orange)
+        }
+        // Add filtered second (series1 = blue)
+        if (plotData.currentTimeSeries != null) {
+            timeChart.getData().add(plotData.currentTimeSeries); // series1 (blue)
         }
 
-        frequencyChart.getData().add(plotData.currentFreqSeries);
+        // Frequency domain chart - same order
+        if (plotData.originalFreqSeries != null) {
+            frequencyChart.getData().add(plotData.originalFreqSeries); // series0 (orange)
+        }
+        if (plotData.currentFreqSeries != null) {
+            frequencyChart.getData().add(plotData.currentFreqSeries); // series1 (blue)
+        }
+
         Platform.runLater(() -> {
-            if (plotData.currentFreqSeries.getNode() != null) {
-                plotData.currentFreqSeries.getNode().setStyle("-fx-stroke: #0066cc; -fx-stroke-width: 2px;");
+            // Fix line stroke color
+            for (XYChart.Series<Number, Number> series : timeChart.getData()) {
+                if ("Filtered Signal".equals(series.getName()) && series.getNode() != null) {
+                    series.getNode().setStyle("-fx-stroke: " + PROCESSED_COLOR + " !important;");
+                }
+            }
+
+            for (XYChart.Series<Number, Number> series : frequencyChart.getData()) {
+                if ("Filtered Spectrum".equals(series.getName()) && series.getNode() != null) {
+                    series.getNode().setStyle("-fx-stroke: " + PROCESSED_COLOR + " !important;");
+                }
+            }
+
+            // Fix legend symbol color
+            for (Node legend : timeChart.lookupAll(".chart-legend-item")) {
+                if (legend instanceof Label label && label.getText().equals("Filtered Signal")) {
+                    Node symbol = label.getGraphic();
+                    if (symbol != null) {
+                        symbol.setStyle("-fx-background-color: " + PROCESSED_COLOR + ", white;");
+                    }
+                }
+            }
+
+            for (Node legend : frequencyChart.lookupAll(".chart-legend-item")) {
+                if (legend instanceof Label label && label.getText().equals("Filtered Spectrum")) {
+                    Node symbol = label.getGraphic();
+                    if (symbol != null) {
+                        symbol.setStyle("-fx-background-color: " + PROCESSED_COLOR + ", white;");
+                    }
+                }
             }
         });
+
     }
 
     public void showChartMode(boolean showTime, boolean showFrequency) {
@@ -458,18 +513,4 @@ public class DashboardPanel extends VBox {
         }
     }
 
-    // Clean up resources
-    public void shutdown() {
-        if (executorService != null && !executorService.isShutdown()) {
-            executorService.shutdown();
-        }
-    }
-
-    // Invalidate FFT cache when signal changes
-    public void invalidateCache() {
-        fftCacheValid = false;
-        cachedOriginalMagnitude = null;
-        cachedProcessedMagnitude = null;
-        cachedFrequencies = null;
-    }
 }
