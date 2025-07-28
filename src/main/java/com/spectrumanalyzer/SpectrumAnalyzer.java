@@ -26,6 +26,7 @@ public class SpectrumAnalyzer extends Application {
     public DashboardPanel dashboardPanel;
     public StatisticPanel statisticPanel;
     public FilterOperator filterOperator;
+    public WindowOperator windowOperator;
 
     public BorderPane rootPane;
     public SplitPane splitPane;
@@ -46,6 +47,8 @@ public class SpectrumAnalyzer extends Application {
 
     private void initializeComponents() {
         filterOperator = new FilterOperator(this);
+        windowOperator = new WindowOperator(this);
+
         homePanel = new HomePanel(this);
         dashboardPanel = new DashboardPanel(this);
         controlPanel = new ControlPanel(this);

@@ -2,6 +2,7 @@ package com.spectrumanalyzer;
 
 import com.github.psambit9791.jdsp.filter.Butterworth;
 import com.github.psambit9791.jdsp.filter.Chebyshev;
+import com.github.psambit9791.jdsp.filter.Bessel;
 
 public class FilterOperator {
     private SpectrumAnalyzer analyzer;
@@ -67,6 +68,22 @@ public class FilterOperator {
                     Chebyshev cbp = new Chebyshev(analyzer.sampleRate, ripple, 1);
                     filtered = cbp.bandPassFilter(signal, order, (int)lowCutoff, (int)highCutoff);
                     break;
+
+                // New Bessel filter cases
+                case "Bessel Low Pass":
+                    Bessel bslp = new Bessel(analyzer.sampleRate);
+                    filtered = bslp.lowPassFilter(signal, order, (int)cutoff);
+                    break;
+
+                case "Bessel High Pass":
+                    Bessel bshp = new Bessel(analyzer.sampleRate);
+                    filtered = bshp.highPassFilter(signal, order, (int)cutoff);
+                    break;
+
+                case "Bessel Band Pass":
+                    Bessel bsbp = new Bessel(analyzer.sampleRate);
+                    filtered = bsbp.bandPassFilter(signal, order, (int)lowCutoff, (int)highCutoff);
+                    break;
             }
 
             if (filtered != null) {
@@ -116,6 +133,19 @@ public class FilterOperator {
                 case "Chebyshev Band Pass":
                     Chebyshev cbp = new Chebyshev(analyzer.sampleRate, ripple, 1);
                     return cbp.bandPassFilter(channelSignal, order, (int)lowCutoff, (int)highCutoff);
+
+                // New Bessel filter cases for multi-channel processing
+                case "Bessel Low Pass":
+                    Bessel bslp = new Bessel(analyzer.sampleRate);
+                    return bslp.lowPassFilter(channelSignal, order, (int)cutoff);
+
+                case "Bessel High Pass":
+                    Bessel bshp = new Bessel(analyzer.sampleRate);
+                    return bshp.highPassFilter(channelSignal, order, (int)cutoff);
+
+                case "Bessel Band Pass":
+                    Bessel bsbp = new Bessel(analyzer.sampleRate);
+                    return bsbp.bandPassFilter(channelSignal, order, (int)lowCutoff, (int)highCutoff);
 
                 default:
                     return channelSignal;

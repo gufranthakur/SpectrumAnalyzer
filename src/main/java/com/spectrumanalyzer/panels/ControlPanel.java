@@ -23,6 +23,11 @@ public class ControlPanel extends VBox {
     private Slider zoomSlider;
     private RadioButton viewTimeDomainButton, viewFrequencyDomainButton, viewBothDomainButton;
 
+    // Windowing components
+    private ToggleGroup windowToggleGroup;
+    private RadioButton rectangularButton, hanningButton, hammingButton, blackmanButton, kaiserButton;
+    private TextField kaiserBetaField;
+
     public ControlPanel(SpectrumAnalyzer analyzer) {
         this.analyzer = analyzer;
         this.setStyle("-fx-background-color: #171716");
@@ -40,7 +45,8 @@ public class ControlPanel extends VBox {
         TitledPane basicFiltersPane = createBasicFiltersPane();
         TitledPane butterworthPane = createButterworthPane();
         TitledPane chebyshevPane = createChebyshevPane();
-        filterAccordion.getPanes().addAll(basicFiltersPane, butterworthPane, chebyshevPane);
+        TitledPane besselPane = createBesselPane(); // Added Bessel pane
+        filterAccordion.getPanes().addAll(basicFiltersPane, butterworthPane, chebyshevPane, besselPane);
         VBox.setVgrow(filterAccordion, Priority.NEVER);
 
         VBox parameterBox = createParameterBox();
@@ -59,6 +65,9 @@ public class ControlPanel extends VBox {
         HBox.setHgrow(applyButton, Priority.ALWAYS);
         HBox.setHgrow(resetButton, Priority.ALWAYS);
 
+        // Create windowing section
+        VBox windowingBox = createWindowingBox();
+
         VBox settingsBox = createViewsBox();
 
         getChildren().addAll(
@@ -70,12 +79,125 @@ public class ControlPanel extends VBox {
                 analyzer.dashboardPanel.statusLabel,
                 analyzer.dashboardPanel.progressBar,
                 makeSeparator(),
+                windowingBox,
+                makeSeparator(),
                 settingsBox
         );
 
         // Add this inside setupUI()
         setupFilterToggleListeners();
+        setupWindowToggleListeners();
+    }
 
+    private VBox createWindowingBox() {
+        VBox windowingBox = new VBox(10);
+        windowingBox.setPadding(new Insets(10));
+
+        Label titleLabel = new Label("Windowing");
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+        // Create toggle group for windowing
+        windowToggleGroup = new ToggleGroup();
+
+        // Create radio buttons
+        rectangularButton = new RadioButton("Rectangular");
+        hanningButton = new RadioButton("Hanning");
+        hammingButton = new RadioButton("Hamming");
+        blackmanButton = new RadioButton("Blackman");
+        kaiserButton = new RadioButton("Kaiser");
+
+        // Set all buttons to the same toggle group and style
+        RadioButton[] windowButtons = {rectangularButton, hanningButton, hammingButton,
+                blackmanButton, kaiserButton};
+
+        for (RadioButton rb : windowButtons) {
+            rb.setToggleGroup(windowToggleGroup);
+            rb.setMaxWidth(Double.MAX_VALUE);
+            rb.setStyle("-fx-background-color: #171716;");
+        }
+
+        // Set Rectangular as default
+        rectangularButton.setSelected(true);
+
+        // Create layout with 3 rows of 2 buttons each
+        HBox row1 = new HBox(10, rectangularButton, hanningButton);
+        HBox row2 = new HBox(10, hammingButton, blackmanButton);
+        HBox row3 = new HBox(10, kaiserButton);
+
+        // Make buttons expand to fill available space
+        for (HBox row : new HBox[]{row1, row2, row3}) {
+            row.setMaxWidth(Double.MAX_VALUE);
+            for (Node node : row.getChildren()) {
+                HBox.setHgrow(node, Priority.ALWAYS);
+            }
+        }
+
+        // Parameter fields for Kaiser and Gaussian windows
+        kaiserBetaField = new TextField("8.6");
+        kaiserBetaField.setPrefWidth(85);
+        kaiserBetaField.setDisable(true); // Initially disabled
+
+        // Apply window button
+        Button applyWindowButton = new Button("Apply Window");
+        applyWindowButton.setStyle("-fx-background-color: #0373ab;");
+        applyWindowButton.setMaxWidth(Double.MAX_VALUE);
+        applyWindowButton.setOnAction(e -> applySelectedWindow());
+
+        windowingBox.getChildren().addAll(
+                titleLabel,
+                row1,
+                row2,
+                row3,
+                createStyledLabel("Kaiser Beta:"),
+                kaiserBetaField,
+                applyWindowButton
+        );
+
+        return windowingBox;
+    }
+
+    private void setupWindowToggleListeners() {
+        windowToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                updateWindowParameterFieldState(((RadioButton) newVal).getText());
+            }
+        });
+    }
+
+    private void updateWindowParameterFieldState(String windowType) {
+        // Disable all parameter fields first
+        kaiserBetaField.setDisable(true);
+
+        // Enable specific fields based on window type
+        switch (windowType) {
+            case "Kaiser":
+                kaiserBetaField.setDisable(false);
+                break;
+        }
+    }
+
+    private String getSelectedWindowType() {
+        RadioButton selected = (RadioButton) windowToggleGroup.getSelectedToggle();
+        if (selected != null) return selected.getText();
+        return "Rectangular"; // Default
+    }
+
+    private void applySelectedWindow() {
+        if (analyzer.originalSignal == null) {
+            analyzer.showAlert("Please load an audio file first");
+            return;
+        }
+
+        try {
+            String windowType = getSelectedWindowType();
+            double kaiserBeta = Double.parseDouble(kaiserBetaField.getText());
+
+            // Apply window using WindowOperator (you'll need to create this class)
+            analyzer.windowOperator.applyWindow(windowType, kaiserBeta);
+            analyzer.dashboardPanel.updatePlots();
+        } catch (NumberFormatException e) {
+            analyzer.showAlert("Invalid parameter values for window");
+        }
     }
 
     private TitledPane createBasicFiltersPane() {
@@ -130,6 +252,24 @@ public class ControlPanel extends VBox {
 
         content.getChildren().addAll(chebyLow, chebyHigh, chebyBand);
         return new TitledPane("Chebyshev Filters", content);
+    }
+
+    // New method to create Bessel filter pane
+    private TitledPane createBesselPane() {
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+
+        RadioButton besselLow = new RadioButton("Bessel Low Pass");
+        RadioButton besselHigh = new RadioButton("Bessel High Pass");
+        RadioButton besselBand = new RadioButton("Bessel Band Pass");
+
+        for (RadioButton rb : new RadioButton[]{besselLow, besselHigh, besselBand}) {
+            rb.setToggleGroup(toggleGroup);
+            rb.setMaxWidth(Double.MAX_VALUE);
+        }
+
+        content.getChildren().addAll(besselLow, besselHigh, besselBand);
+        return new TitledPane("Bessel Filters", content);
     }
 
     private VBox createParameterBox() {
