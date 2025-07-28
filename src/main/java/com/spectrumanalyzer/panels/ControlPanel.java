@@ -18,11 +18,6 @@ public class ControlPanel extends VBox {
 
     private ComboBox<String> cutOffUnitBox, lowCutOffUnitBox, highCutoffUnitBox;
 
-    private Button resetViewsButton;
-
-    private Slider zoomSlider;
-    private RadioButton viewTimeDomainButton, viewFrequencyDomainButton, viewBothDomainButton;
-
     // Windowing components
     private ToggleGroup windowToggleGroup;
     private RadioButton rectangularButton, hanningButton, hammingButton, blackmanButton, kaiserButton;
@@ -30,7 +25,7 @@ public class ControlPanel extends VBox {
 
     public ControlPanel(SpectrumAnalyzer analyzer) {
         this.analyzer = analyzer;
-        this.setStyle("-fx-background-color: #171716");
+
         setMaxWidth(Double.MAX_VALUE);
         setPadding(new Insets(10));
         setSpacing(10);
@@ -68,20 +63,16 @@ public class ControlPanel extends VBox {
         // Create windowing section
         VBox windowingBox = createWindowingBox();
 
-        VBox settingsBox = createViewsBox();
-
         getChildren().addAll(
                 titleLabel,
                 filterAccordion,
                 makeSeparator(),
+                windowingBox,
+                makeSeparator(),
                 parameterBox,
                 buttonBox,
                 analyzer.dashboardPanel.statusLabel,
-                analyzer.dashboardPanel.progressBar,
-                makeSeparator(),
-                windowingBox,
-                makeSeparator(),
-                settingsBox
+                analyzer.dashboardPanel.progressBar
         );
 
         // Add this inside setupUI()
@@ -113,7 +104,6 @@ public class ControlPanel extends VBox {
         for (RadioButton rb : windowButtons) {
             rb.setToggleGroup(windowToggleGroup);
             rb.setMaxWidth(Double.MAX_VALUE);
-            rb.setStyle("-fx-background-color: #171716;");
         }
 
         // Set Rectangular as default
@@ -336,63 +326,6 @@ public class ControlPanel extends VBox {
         return label;
     }
 
-    private VBox createViewsBox() {
-        VBox box = new VBox(10);
-
-        Label titleLabel = new Label("View Settings");
-        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
-
-        resetViewsButton = new Button("Reset Views");
-        resetViewsButton.setStyle("-fx-background-color: #e37a09;");
-        resetViewsButton.setOnMouseClicked(e -> analyzer.dashboardPanel.resetAllZoom());
-
-        zoomSlider = new Slider(1.0, 10.0, 4.0);
-        zoomSlider.setShowTickLabels(true);
-        zoomSlider.setShowTickMarks(true);
-        zoomSlider.setMajorTickUnit(1);
-        zoomSlider.setMinorTickCount(1);
-        zoomSlider.setBlockIncrement(1);
-        zoomSlider.setSnapToTicks(true);
-        zoomSlider.setMaxWidth(Double.MAX_VALUE);
-
-        zoomSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
-            analyzer.dashboardPanel.zoomRate = newVal.doubleValue() / 10.0;
-        });
-
-        viewTimeDomainButton = new RadioButton("View Time Domain");
-        viewFrequencyDomainButton = new RadioButton("View Frequency Domain");
-        viewBothDomainButton = new RadioButton("View both domains");
-
-        ToggleGroup viewGroup = new ToggleGroup();
-        viewTimeDomainButton.setToggleGroup(viewGroup);
-        viewTimeDomainButton.setStyle("-fx-background-color: #171716;");
-        viewFrequencyDomainButton.setToggleGroup(viewGroup);
-        viewFrequencyDomainButton.setStyle("-fx-background-color: #171716;");
-        viewBothDomainButton.setToggleGroup(viewGroup);
-        viewBothDomainButton.setStyle("-fx-background-color: #171716;");
-
-        for (RadioButton rb : new RadioButton[]{viewTimeDomainButton, viewFrequencyDomainButton, viewBothDomainButton}) {
-            rb.setMaxWidth(Double.MAX_VALUE);
-        }
-
-        viewTimeDomainButton.setOnMouseClicked(e -> analyzer.dashboardPanel.showChartMode(true, false));
-        viewFrequencyDomainButton.setOnMouseClicked(e -> analyzer.dashboardPanel.showChartMode(false, true));
-        viewBothDomainButton.setOnMouseClicked(e -> analyzer.dashboardPanel.showChartMode(true, true));
-
-        box.getChildren().addAll(
-                titleLabel,
-                new Label("Horizontal Zoom"),
-                analyzer.dashboardPanel.horizontalZoomSlider,
-                new Label("Horizontal Movement"),
-                analyzer.dashboardPanel.horizontalMoveSlider,
-                resetViewsButton,
-                viewBothDomainButton,
-                viewTimeDomainButton,
-                viewFrequencyDomainButton
-        );
-
-        return box;
-    }
 
     private String getSelectedFilterType() {
         RadioButton selected = (RadioButton) toggleGroup.getSelectedToggle();

@@ -50,7 +50,7 @@ public class DashboardPanel extends VBox {
             t.setDaemon(true);
             return t;
         });
-        this.setStyle("-fx-background-color: #1e1e1e;");
+
         setupUI();
         setupZoomAndPan();
     }

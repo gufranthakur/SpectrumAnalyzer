@@ -1,10 +1,7 @@
 package com.spectrumanalyzer;
 
 import atlantafx.base.theme.CupertinoDark;
-import com.spectrumanalyzer.panels.ControlPanel;
-import com.spectrumanalyzer.panels.DashboardPanel;
-import com.spectrumanalyzer.panels.HomePanel;
-import com.spectrumanalyzer.panels.StatisticPanel;
+import com.spectrumanalyzer.panels.*;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -22,9 +19,12 @@ public class SpectrumAnalyzer extends Application {
     public int channels;
 
     public HomePanel homePanel;
+
     public ControlPanel controlPanel;
     public DashboardPanel dashboardPanel;
     public StatisticPanel statisticPanel;
+    public ViewPanel viewPanel;
+
     public FilterOperator filterOperator;
     public WindowOperator windowOperator;
 
@@ -51,6 +51,7 @@ public class SpectrumAnalyzer extends Application {
 
         homePanel = new HomePanel(this);
         dashboardPanel = new DashboardPanel(this);
+        viewPanel = new ViewPanel(this);
         controlPanel = new ControlPanel(this);
         statisticPanel = new StatisticPanel(this);
     }
@@ -76,9 +77,10 @@ public class SpectrumAnalyzer extends Application {
 
         Tab homeTab = new Tab("Home", homePanel);
         Tab controlTab = new Tab("Controls", controlScrollPane);
+        Tab viewTab = new Tab("View", viewPanel);
         Tab statsTab = new Tab("Statistics", statisticScrollPane);
 
-        tabPane.getTabs().addAll(homeTab, controlTab, statsTab);
+        tabPane.getTabs().addAll(homeTab, controlTab, viewTab, statsTab);
         tabPane.setPrefWidth(300); // optional width
 
         splitPane.setDividerPosition(0, 0.15);

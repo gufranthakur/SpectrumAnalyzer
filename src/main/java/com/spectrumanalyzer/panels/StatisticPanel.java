@@ -42,7 +42,7 @@ public class StatisticPanel extends VBox {
 
     public StatisticPanel(SpectrumAnalyzer spectrumAnalyzer) {
         this.spectrumAnalyzer = spectrumAnalyzer;
-        this.setStyle("-fx-background-color: #171716");
+
         initializeComponents();
         setupLayout();
         setStyle();
@@ -101,13 +101,6 @@ public class StatisticPanel extends VBox {
         this.setPadding(new Insets(15));
         this.setAlignment(Pos.TOP_LEFT);
 
-        // Title section
-        this.getChildren().addAll(
-                titleLabel,
-                updateStatisticsButton,
-                makeSeparator()
-        );
-
         // Original signal section
         this.getChildren().addAll(
                 originalTitleLabel,
@@ -133,25 +126,15 @@ public class StatisticPanel extends VBox {
         // Top frequencies section
         this.getChildren().addAll(
                 frequenciesTitleLabel,
-                frequenciesContainer
+                frequenciesContainer,
+                makeSeparator(),
+                updateStatisticsButton
         );
     }
 
     private void setStyle() {
         // Style all labels
-        String labelStyle = "-fx-text-fill: #E0E0E0; -fx-font-size: 12px;";
 
-        originalChannelsLabel.setStyle(labelStyle);
-        originalSampleRateLabel.setStyle(labelStyle);
-        originalDurationLabel.setStyle(labelStyle);
-        originalRMSLabel.setStyle(labelStyle);
-        originalPeakLabel.setStyle(labelStyle);
-
-        filteredChannelsLabel.setStyle(labelStyle);
-        filteredSampleRateLabel.setStyle(labelStyle);
-        filteredDurationLabel.setStyle(labelStyle);
-        filteredRMSLabel.setStyle(labelStyle);
-        filteredPeakLabel.setStyle(labelStyle);
 
         // Style button
         updateStatisticsButton.setStyle(
@@ -164,8 +147,6 @@ public class StatisticPanel extends VBox {
 
     private Separator makeSeparator() {
         Separator separator = new Separator();
-        separator.setPadding(new Insets(5, 0, 5, 0));
-        separator.setStyle("-fx-background-color: #404040;");
         return separator;
     }
 
